@@ -1,5 +1,5 @@
-// Hotel Management System - Prisma Schema
-// Supports Admin Dashboard and Guest Booking App
+// HMS Hotel Management System - Prisma Schema
+// Single hotel deployment for HMS Hotel operations
 
 generator client {
   provider = "prisma-client"
@@ -11,7 +11,7 @@ datasource db {
 }
 
 // ============================================
-// AUTHENTICATION MODELS (Existing)
+// AUTHENTICATION MODELS
 // ============================================
 
 model User {
@@ -82,30 +82,8 @@ model Verification {
 }
 
 // ============================================
-// HOTEL & ROOM MANAGEMENT MODELS
+// ROOM MANAGEMENT MODELS
 // ============================================
-
-model Hotel {
-  id          String   @id @default(uuid())
-  name        String
-  address     String?
-  city        String?
-  country     String?
-  phone       String?
-  email       String?
-  checkInTime String   @default("14:00") // HH:mm format
-  checkOutTime String  @default("11:00") // HH:mm format
-  timezone    String   @default("UTC")
-  currency    String   @default("USD")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  roomTypes RoomType[]
-  rooms     Room[]
-
-  @@map("hotel")
-}
 
 model RoomType {
   id          String   @id @default(uuid())
@@ -119,10 +97,7 @@ model RoomType {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  hotelId String
-  hotel   Hotel  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  rooms   Room[]
+  rooms Room[]
 
   @@map("room_type")
 }
@@ -146,14 +121,11 @@ model Room {
   updatedAt   DateTime   @updatedAt
 
   // Relations
-  hotelId    String
-  hotel      Hotel      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   roomTypeId String
   roomType   RoomType   @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
 
-  // Unique constraint: room number per hotel
-  @@unique([hotelId, number])
-  @@index([hotelId])
+  // Unique constraint: room number
+  @@unique([number])
   @@index([roomTypeId])
   @@index([status])
   @@map("room")
@@ -184,13 +156,17 @@ model Guest {
   lastName        String
   email           String
   phone           String?
+  alternatePhone  String?
   dateOfBirth     DateTime?
   nationality     String?
   idType          String?   // e.g., "Passport", "Driver License"
   idNumber        String?
+  idExpiry        DateTime?
+  passportCountry String?
   address         String?
   city            String?
   country         String?
+  specialRequests String?   // Hotel-specific guest requests
   specialNotes    String?   // VIP, problem guests, etc.
   isVip           Boolean   @default(false)
   loyaltyPoints   Int       @default(0)
@@ -202,7 +178,6 @@ model Guest {
   userId String?   @unique
   user   User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  // Relations
   preferences GuestPreference[]
   bookings    Booking[]
   folios     Folio[]
