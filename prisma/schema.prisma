@@ -26,8 +26,8 @@ model User {
   accounts      Account[]
 
   // HMS Relations
-  guest   Guest?
-  staff   Staff?
+  guest Guest?
+  staff Staff?
 
   @@unique([email])
   @@map("user")
@@ -55,15 +55,15 @@ model Account {
   providerId            String
   userId                String
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken          String?
-  refreshToken         String?
-  idToken              String?
-  accessTokenExpiresAt DateTime?
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope                String?
-  password             String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@index([userId])
   @@map("account")
@@ -86,16 +86,16 @@ model Verification {
 // ============================================
 
 model RoomType {
-  id          String   @id @default(uuid())
-  name        String   // e.g., "Deluxe Suite", "Standard Room"
-  description String?
-  basePrice   Decimal  @db.Decimal(10, 2)
-  maxOccupancy Int     @default(2)
-  bedConfig   String? // e.g., "1 King", "2 Queen"
-  amenities   String[] // Array of amenities
-  images      String[] // Array of image URLs
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String // e.g., "Deluxe Suite", "Standard Room"
+  description  String?
+  basePrice    Decimal  @db.Decimal(10, 2)
+  maxOccupancy Int      @default(2)
+  bedConfig    String? // e.g., "1 King", "2 Queen"
+  amenities    String[] // Array of amenities
+  images       String[] // Array of image URLs
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   rooms Room[]
 
@@ -103,26 +103,32 @@ model RoomType {
 }
 
 enum RoomStatus {
-  AVAILABLE    // Ready for check-in
-  OCCUPIED     // Currently occupied
-  DIRTY        // Needs cleaning
-  CLEANING     // Being cleaned
-  MAINTENANCE  // Under maintenance
+  AVAILABLE // Ready for check-in
+  OCCUPIED // Currently occupied
+  DIRTY // Needs cleaning
+  CLEANING // Being cleaned
+  MAINTENANCE // Under maintenance
   OUT_OF_ORDER // Not available
 }
 
 model Room {
-  id          String     @id @default(uuid())
-  number      String     // Room number (e.g., "101", "1001")
-  floor       Int
-  status      RoomStatus @default(AVAILABLE)
-  notes       String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String     @id @default(uuid())
+  number    String // Room number (e.g., "101", "1001")
+  floor     Int
+  status    RoomStatus @default(AVAILABLE)
+  notes     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   // Relations
   roomTypeId String
-  roomType   RoomType   @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+
+  // Room history and operations
+  statusHistories    RoomStatusHistory[]
+  bookingRooms       BookingRoom[]
+  housekeepingTasks  HousekeepingTask[]
+  maintenanceTickets MaintenanceTicket[]
 
   // Unique constraint: room number
   @@unique([number])
@@ -137,9 +143,9 @@ model RoomStatusHistory {
   status    RoomStatus
   notes     String?
   changedAt DateTime   @default(now())
-  changedBy String?    // Staff ID who made the change
+  changedBy String? // Staff ID who made the change
 
-  room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
   @@index([changedAt])
@@ -159,15 +165,15 @@ model Guest {
   alternatePhone  String?
   dateOfBirth     DateTime?
   nationality     String?
-  idType          String?   // e.g., "Passport", "Driver License"
+  idType          String? // e.g., "Passport", "Driver License"
   idNumber        String?
   idExpiry        DateTime?
   passportCountry String?
   address         String?
   city            String?
   country         String?
-  specialRequests String?   // Hotel-specific guest requests
-  specialNotes    String?   // VIP, problem guests, etc.
+  specialRequests String? // Hotel-specific guest requests
+  specialNotes    String? // VIP, problem guests, etc.
   isVip           Boolean   @default(false)
   loyaltyPoints   Int       @default(0)
   marketingOptIn  Boolean   @default(false)
@@ -175,12 +181,12 @@ model Guest {
   updatedAt       DateTime  @updatedAt
 
   // Relations
-  userId String?   @unique
-  user   User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   preferences GuestPreference[]
   bookings    Booking[]
-  folios     Folio[]
+  folios      Folio[]
 
   @@unique([email])
   @@index([userId])
@@ -189,14 +195,14 @@ model Guest {
 }
 
 model GuestPreference {
-  id             String   @id @default(uuid())
-  guestId        String
-  preferenceType String   // e.g., "dietary", "room", "general"
-  preferenceKey  String   // e.g., "diet", "floor", "pillow_type"
-  preferenceValue String   // e.g., "vegetarian", "high_floor", "firm"
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(uuid())
+  guestId         String
+  preferenceType  String // e.g., "dietary", "room", "general"
+  preferenceKey   String // e.g., "diet", "floor", "pillow_type"
+  preferenceValue String // e.g., "vegetarian", "high_floor", "firm"
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
@@ -210,64 +216,64 @@ model GuestPreference {
 // ============================================
 
 enum BookingStatus {
-  TENTATIVE    // Initial booking, not confirmed
-  CONFIRMED    // Confirmed reservation
-  CHECKED_IN   // Guest has checked in
-  CHECKED_OUT  // Guest has checked out
-  CANCELLED    // Booking was cancelled
-  NO_SHOW      // Guest didn't arrive
+  TENTATIVE // Initial booking, not confirmed
+  CONFIRMED // Confirmed reservation
+  CHECKED_IN // Guest has checked in
+  CHECKED_OUT // Guest has checked out
+  CANCELLED // Booking was cancelled
+  NO_SHOW // Guest didn't arrive
 }
 
 enum BookingSource {
-  DIRECT        // Direct booking (hotel website/app)
-  WALK_IN       // In-person booking at hotel
-  PHONE         // Phone booking
-  OTA           // Online Travel Agency (Booking.com, Expedia, etc.)
-  CORPORATE     // Corporate account booking
-  GROUP         // Group booking
+  DIRECT // Direct booking (hotel website/app)
+  WALK_IN // In-person booking at hotel
+  PHONE // Phone booking
+  OTA // Online Travel Agency (Booking.com, Expedia, etc.)
+  CORPORATE // Corporate account booking
+  GROUP // Group booking
 }
 
 model Booking {
-  id              String        @id @default(uuid())
-  confirmationCode String       @unique // e.g., "HMS-2024-001234"
-  status          BookingStatus @default(TENTATIVE)
-  source          BookingSource @default(DIRECT)
+  id               String        @id @default(uuid())
+  confirmationCode String        @unique // e.g., "HMS-2024-001234"
+  status           BookingStatus @default(TENTATIVE)
+  source           BookingSource @default(DIRECT)
 
   // Guest info (for quick access, denormalized)
-  guestFirstName  String
-  guestLastName   String
-  guestEmail      String
-  guestPhone      String?
+  guestFirstName String
+  guestLastName  String
+  guestEmail     String
+  guestPhone     String?
 
   // Booking details
-  adults          Int           @default(1)
-  children        Int           @default(0)
-  infants         Int           @default(0)
+  adults   Int @default(1)
+  children Int @default(0)
+  infants  Int @default(0)
 
   // Pricing
-  subtotal        Decimal       @db.Decimal(10, 2)
-  taxes           Decimal       @db.Decimal(10, 2) @default(0)
-  discounts       Decimal       @db.Decimal(10, 2) @default(0)
-  totalAmount     Decimal       @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+  taxes       Decimal @default(0) @db.Decimal(10, 2)
+  discounts   Decimal @default(0) @db.Decimal(10, 2)
+  totalAmount Decimal @db.Decimal(10, 2)
 
   // Dates
-  checkInDate     DateTime
-  checkOutDate    DateTime
-  actualCheckIn   DateTime?
-  actualCheckOut  DateTime?
+  checkInDate    DateTime
+  checkOutDate   DateTime
+  actualCheckIn  DateTime?
+  actualCheckOut DateTime?
 
   // Notes
   specialRequests String?
   internalNotes   String?
 
   // Group booking support
-  isGroupBooking  Boolean       @default(false)
-  groupName       String?       // Corporate event, wedding, tour group name
-  masterBookingId String?       // Links child bookings to master
+  isGroupBooking  Boolean @default(false)
+  groupName       String? // Corporate event, wedding, tour group name
+  masterBookingId String? // Links child bookings to master
 
   // Timestamps
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   guestId String
@@ -276,8 +282,8 @@ model Booking {
   bookingRooms  BookingRoom[]
   checkIn       CheckIn?
   checkOut      CheckOut?
-  masterBooking Booking?        @relation("GroupBookings", fields: [masterBookingId], references: [id])
-  childBookings  Booking[]      @relation("GroupBookings")
+  masterBooking Booking?      @relation("GroupBookings", fields: [masterBookingId], references: [id])
+  childBookings Booking[]     @relation("GroupBookings")
 
   @@index([guestId])
   @@index([status])
@@ -288,21 +294,21 @@ model Booking {
 }
 
 model BookingRoom {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  bookingId   String
-  roomId      String
+  bookingId String
+  roomId    String
 
   // Pricing for this room
-  rate        Decimal  @db.Decimal(10, 2) // Nightly rate
+  rate        Decimal @db.Decimal(10, 2) // Nightly rate
   totalNights Int
 
   // Status
-  isPrimary   Boolean  @default(true) // Primary room in booking (for billing)
-  status      String   @default("RESERVED") // RESERVED, CHECKED_IN, CHECKED_OUT
+  isPrimary Boolean @default(true) // Primary room in booking (for billing)
+  status    String  @default("RESERVED") // RESERVED, CHECKED_IN, CHECKED_OUT
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   room    Room    @relation(fields: [roomId], references: [id], onDelete: Restrict)
@@ -317,26 +323,26 @@ model BookingRoom {
 // ============================================
 
 model CheckIn {
-  id              String   @id @default(uuid())
-  bookingId       String   @unique
-  checkedInAt     DateTime @default(now())
-  checkedInBy     String   // Staff ID
+  id          String   @id @default(uuid())
+  bookingId   String   @unique
+  checkedInAt DateTime @default(now())
+  checkedInBy String // Staff ID
 
   // Digital key info
-  keyCardNumber   String?
-  keyCardIssued   Int      @default(1)
-  keyExpiration   DateTime?
+  keyCardNumber String?
+  keyCardIssued Int       @default(1)
+  keyExpiration DateTime?
 
   // ID verification
-  idVerified      Boolean  @default(false)
-  idDocumentType  String?
+  idVerified       Boolean @default(false)
+  idDocumentType   String?
   idDocumentNumber String?
 
   // Acknowledgments
   policiesAccepted Boolean @default(false)
   privacyAccepted  Boolean @default(false)
 
-  notes           String?
+  notes String?
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
@@ -345,23 +351,23 @@ model CheckIn {
 }
 
 model CheckOut {
-  id              String   @id @default(uuid())
-  bookingId       String   @unique
-  checkedOutAt    DateTime @default(now())
-  checkedOutBy    String   // Staff ID
+  id           String   @id @default(uuid())
+  bookingId    String   @unique
+  checkedOutAt DateTime @default(now())
+  checkedOutBy String // Staff ID
 
   // Checkout details
-  departureTime   String?  // HH:mm format
+  departureTime    String? // HH:mm format
   roomKeysReturned Boolean @default(false)
 
   // Final billing
-  folioBalance    Decimal  @db.Decimal(10, 2) @default(0)
-  paymentRequired Boolean  @default(false)
+  folioBalance    Decimal @default(0) @db.Decimal(10, 2)
+  paymentRequired Boolean @default(false)
 
   // Survey/feedback
   feedbackRequested Boolean @default(false)
 
-  notes           String?
+  notes String?
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
@@ -397,28 +403,28 @@ enum TaskType {
 }
 
 model HousekeepingTask {
-  id          String      @id @default(uuid())
-  roomId      String
-  taskType    TaskType    @default(CLEANING)
-  priority    TaskPriority @default(NORMAL)
-  status      TaskStatus  @default(PENDING)
+  id       String       @id @default(uuid())
+  roomId   String
+  taskType TaskType     @default(CLEANING)
+  priority TaskPriority @default(NORMAL)
+  status   TaskStatus   @default(PENDING)
 
   // Scheduling
   scheduledFor DateTime?
   startedAt    DateTime?
   completedAt  DateTime?
-  dueBy       DateTime?
+  dueBy        DateTime?
 
   // Assignment
-  assignedTo   String?    // Staff ID
+  assignedTo String? // Staff ID
 
   // Details
   instructions String?
   notes        String?
 
   // Timestamps
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   room  Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
   staff Staff? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
@@ -457,26 +463,26 @@ enum TicketCategory {
 }
 
 model MaintenanceTicket {
-  id          String        @id @default(uuid())
-  roomId      String
-  category    TicketCategory
-  priority    TicketPriority @default(MEDIUM)
-  status      TicketStatus  @default(OPEN)
+  id       String         @id @default(uuid())
+  roomId   String
+  category TicketCategory
+  priority TicketPriority @default(MEDIUM)
+  status   TicketStatus   @default(OPEN)
 
-  title       String        // Brief description
-  description String        // Detailed issue description
-  location    String?       // Specific location within room
+  title       String // Brief description
+  description String // Detailed issue description
+  location    String? // Specific location within room
 
   // Resolution
-  resolution   String?
-  resolvedAt   DateTime?
+  resolution String?
+  resolvedAt DateTime?
 
   // Assignment
-  assignedTo   String?    // Staff ID
+  assignedTo String? // Staff ID
 
   // Timestamps
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   room  Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
   staff Staff? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
@@ -500,28 +506,28 @@ enum FolioStatus {
 }
 
 model Folio {
-  id          String     @id @default(uuid())
-  folioNumber String     @unique // e.g., "FOL-2024-000123"
+  id          String      @id @default(uuid())
+  folioNumber String      @unique // e.g., "FOL-2024-000123"
   status      FolioStatus @default(OPEN)
 
-  guestId     String
-  bookingId   String?
+  guestId   String
+  bookingId String?
 
   // Totals
-  subtotal    Decimal    @db.Decimal(10, 2) @default(0)
-  taxes       Decimal    @db.Decimal(10, 2) @default(0)
-  payments    Decimal    @db.Decimal(10, 2) @default(0)
-  balance     Decimal    @db.Decimal(10, 2) @default(0)
+  subtotal      Decimal @default(0) @db.Decimal(10, 2)
+  taxes         Decimal @default(0) @db.Decimal(10, 2)
+  totalPayments Decimal @default(0) @db.Decimal(10, 2)
+  balance       Decimal @default(0) @db.Decimal(10, 2)
 
   // Timestamps
-  openedAt    DateTime   @default(now())
-  closedAt    DateTime?
+  openedAt DateTime  @default(now())
+  closedAt DateTime?
 
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  guest   Guest   @relation(fields: [guestId], references: [id], onDelete: Restrict)
-  charges Charge[]
+  guest    Guest     @relation(fields: [guestId], references: [id], onDelete: Restrict)
+  charges  Charge[]
   payments Payment[]
 
   @@index([guestId])
@@ -552,29 +558,29 @@ enum ChargeCategory {
 }
 
 model Charge {
-  id           String        @id @default(uuid())
-  folioId      String
+  id      String @id @default(uuid())
+  folioId String
 
-  category     ChargeCategory
-  description  String
-  amount       Decimal       @db.Decimal(10, 2)
+  category    ChargeCategory
+  description String
+  amount      Decimal        @db.Decimal(10, 2)
 
   // Quantity and unit price for itemized charges
-  quantity     Int           @default(1)
-  unitPrice    Decimal?      @db.Decimal(10, 2)
+  quantity  Int      @default(1)
+  unitPrice Decimal? @db.Decimal(10, 2)
 
   // Reference to source (e.g., restaurant order, spa appointment)
-  referenceId  String?       // Links to external service order
-  referenceType String?      // e.g., "RestaurantOrder", "SpaAppointment"
+  referenceId   String? // Links to external service order
+  referenceType String? // e.g., "RestaurantOrder", "SpaAppointment"
 
   // Posting info
-  postedBy     String?        // Staff ID
-  postedAt     DateTime       @default(now())
+  postedBy String? // Staff ID
+  postedAt DateTime @default(now())
 
   // Night audit
   nightAuditId String?
 
-  createdAt    DateTime       @default(now())
+  createdAt DateTime @default(now())
 
   folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
 
@@ -596,36 +602,36 @@ enum PaymentMethod {
 }
 
 model Payment {
-  id            String        @id @default(uuid())
-  folioId       String
+  id      String @id @default(uuid())
+  folioId String
 
-  method        PaymentMethod
-  amount        Decimal       @db.Decimal(10, 2)
+  method PaymentMethod
+  amount Decimal       @db.Decimal(10, 2)
 
   // Payment gateway fields (for future integration)
-  transactionId String?       // Gateway transaction ID
-  authorizationCode String?   // Auth code from processor
-  cardLast4     String?       // Last 4 digits of card
-  cardBrand     String?       // Visa, Mastercard, etc.
+  transactionId     String? // Gateway transaction ID
+  authorizationCode String? // Auth code from processor
+  cardLast4         String? // Last 4 digits of card
+  cardBrand         String? // Visa, Mastercard, etc.
 
   // Reference
-  reference     String?      // Check number, reference number
+  reference String? // Check number, reference number
 
   // Status
-  status        String        @default("COMPLETED") // COMPLETED, PENDING, FAILED, REFUNDED
+  status String @default("COMPLETED") // COMPLETED, PENDING, FAILED, REFUNDED
 
   // Processed by
-  processedBy   String?       // Staff ID
-  processedAt   DateTime      @default(now())
+  processedBy String? // Staff ID
+  processedAt DateTime @default(now())
 
   // Night audit
-  nightAuditId  String?
+  nightAuditId String?
 
   // Refund info
-  refundedAmount Decimal?      @db.Decimal(10, 2)
-  refundedAt    DateTime?
+  refundedAmount Decimal?  @db.Decimal(10, 2)
+  refundedAt     DateTime?
 
-  createdAt     DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
 
@@ -652,27 +658,27 @@ enum StaffRole {
 }
 
 model Staff {
-  id          String    @id @default(uuid())
-  firstName   String
-  lastName    String
-  email       String
-  phone       String?
-  role        StaffRole @default(FRONT_DESK)
-  isActive    Boolean   @default(true)
-  hireDate    DateTime  @default(now())
-  salary      Decimal?  @db.Decimal(10, 2)
+  id        String    @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  role      StaffRole @default(FRONT_DESK)
+  isActive  Boolean   @default(true)
+  hireDate  DateTime  @default(now())
+  salary    Decimal?  @db.Decimal(10, 2)
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userId String? @unique
-  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Relations
-  shifts           Shift[]
-  shiftReports     ShiftReport[]
-  housekeepingTasks HousekeepingTask[]
+  shifts             Shift[]
+  housekeepingTasks  HousekeepingTask[]
   maintenanceTickets MaintenanceTicket[]
+  shiftReports       ShiftReport[]
 
   @@unique([email])
   @@index([role])
@@ -681,10 +687,10 @@ model Staff {
 }
 
 model Shift {
-  id          String    @id @default(uuid())
+  id String @id @default(uuid())
 
-  staffId     String
-  role        StaffRole // Role during this shift
+  staffId String
+  role    StaffRole // Role during this shift
 
   startTime   DateTime
   endTime     DateTime?
@@ -692,17 +698,17 @@ model Shift {
   actualEnd   DateTime?
 
   // Break
-  breakStart  DateTime?
-  breakEnd    DateTime?
+  breakStart DateTime?
+  breakEnd   DateTime?
 
-  status      String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, ABSENT
+  status String @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, ABSENT
 
-  notes       String?
+  notes String?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  staff       Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   shiftReports ShiftReport[]
 
@@ -713,22 +719,23 @@ model Shift {
 }
 
 model ShiftReport {
-  id          String   @id @default(uuid())
+  id          String @id @default(uuid())
   shiftId     String
+  submittedBy String // Staff ID
 
-  reportType  String   // END_OF_DAY, SHIFT_SUMMARY, etc.
+  reportType String // END_OF_DAY, SHIFT_SUMMARY, etc.
 
   // Financial summary
-  totalCharges   Decimal @db.Decimal(12, 2) @default(0)
-  totalPayments   Decimal @db.Decimal(12, 2) @default(0)
-  totalCash       Decimal @db.Decimal(12, 2) @default(0)
-  totalCards      Decimal @db.Decimal(12, 2) @default(0)
+  totalCharges  Decimal @default(0) @db.Decimal(12, 2)
+  totalPayments Decimal @default(0) @db.Decimal(12, 2)
+  totalCash     Decimal @default(0) @db.Decimal(12, 2)
+  totalCards    Decimal @default(0) @db.Decimal(12, 2)
 
   // Operational summary
-  checkIns   Int      @default(0)
-  checkOuts  Int      @default(0)
-  noShows    Int      @default(0)
-  cancellations Int   @default(0)
+  checkIns      Int @default(0)
+  checkOuts     Int @default(0)
+  noShows       Int @default(0)
+  cancellations Int @default(0)
 
   // Room status at shift end
   roomsAvailable   Int @default(0)
@@ -737,12 +744,12 @@ model ShiftReport {
   roomsMaintenance Int @default(0)
 
   // Notes
-  notes        String?
-  submittedBy  String  // Staff ID
+  notes String?
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  shift Staff @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  staff Staff @relation(fields: [submittedBy], references: [id], onDelete: Restrict)
 
   @@index([shiftId])
   @@index([createdAt])
@@ -775,16 +782,16 @@ enum EmailStatus {
 }
 
 model EmailLog {
-  id          String      @id @default(uuid())
-  guestId     String?
+  id      String  @id @default(uuid())
+  guestId String?
 
-  emailType   EmailType
-  recipient   String      // Email address
-  subject     String
+  emailType EmailType
+  recipient String // Email address
+  subject   String
 
   // Content
-  body        String?     // HTML content
-  templateId  String?     // If using email templates
+  body       String? // HTML content
+  templateId String? // If using email templates
 
   // Status tracking
   status      EmailStatus @default(PENDING)
@@ -797,10 +804,10 @@ model EmailLog {
   errorMessage String?
 
   // Metadata
-  metadata    Json?       // Additional data (campaign ID, etc.)
+  metadata Json? // Additional data (campaign ID, etc.)
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([guestId])
   @@index([emailType])
@@ -814,40 +821,40 @@ model EmailLog {
 // ============================================
 
 model NightAudit {
-  id            String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  auditDate      DateTime @db.Date
-  startedAt      DateTime
-  completedAt    DateTime?
+  auditDate   DateTime  @db.Date
+  startedAt   DateTime
+  completedAt DateTime?
 
   // Status
-  status        String   @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, REVERSED
+  status String @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, REVERSED
 
   // Financial totals
-  totalRoomRevenue     Decimal @db.Decimal(12, 2) @default(0)
-  totalFbrRevenue      Decimal @db.Decimal(12, 2) @default(0)
-  totalOtherRevenue    Decimal @db.Decimal(12, 2) @default(0)
-  totalRevenue         Decimal @db.Decimal(12, 2) @default(0)
-  totalPayments        Decimal @db.Decimal(12, 2) @default(0)
-  totalRefunds         Decimal @db.Decimal(12, 2) @default(0)
+  totalRoomRevenue  Decimal @default(0) @db.Decimal(12, 2)
+  totalFbrRevenue   Decimal @default(0) @db.Decimal(12, 2)
+  totalOtherRevenue Decimal @default(0) @db.Decimal(12, 2)
+  totalRevenue      Decimal @default(0) @db.Decimal(12, 2)
+  totalPayments     Decimal @default(0) @db.Decimal(12, 2)
+  totalRefunds      Decimal @default(0) @db.Decimal(12, 2)
 
   // Statistics
-  totalCheckIns        Int     @default(0)
-  totalCheckOuts       Int     @default(0)
-  totalOccupiedRooms   Int     @default(0)
-  occupancyRate        Decimal @db.Decimal(5, 2) @default(0)
+  totalCheckIns      Int     @default(0)
+  totalCheckOuts     Int     @default(0)
+  totalOccupiedRooms Int     @default(0)
+  occupancyRate      Decimal @default(0) @db.Decimal(5, 2)
 
   // ADR and RevPAR
-  adr                   Decimal @db.Decimal(10, 2) @default(0) // Average Daily Rate
-  revpar                Decimal @db.Decimal(10, 2) @default(0) // Revenue Per Available Room
+  adr    Decimal @default(0) @db.Decimal(10, 2) // Average Daily Rate
+  revpar Decimal @default(0) @db.Decimal(10, 2) // Revenue Per Available Room
 
   // Notes
-  notes                String?
-  preparedBy           String  // Staff ID
-  reviewedBy           String? // Manager ID
+  notes      String?
+  preparedBy String // Staff ID
+  reviewedBy String? // Manager ID
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([auditDate])
   @@index([status])
