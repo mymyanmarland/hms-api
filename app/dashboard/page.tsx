@@ -1,6 +1,3 @@
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import prisma from "@/lib/prisma";
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { DataTable } from "@/components/data-table"
@@ -10,23 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 import data from "./data.json"
 
-export default async function Page() {
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("session")?.value;
-
-  if (!sessionToken) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findUnique({
-    where: { token: sessionToken },
-  });
-
-  if (!session || session.expiresAt < new Date()) {
-    cookieStore.delete("session");
-    redirect("/login");
-  }
-
+export default function Page() {
   return (
     <SidebarProvider
       style={
