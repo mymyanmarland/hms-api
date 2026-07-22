@@ -1,14 +1,6 @@
-import { PrismaClient } from "../app/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import "dotenv/config";
 import bcrypt from "bcryptjs";
-
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL!,
-});
-
-const prisma = new PrismaClient({
-  adapter,
-});
+import prisma from "@/lib/prisma";
 
 const ADMIN_EMAIL = "admin@hms.com";
 const ADMIN_PASSWORD = "Admin@123456";
@@ -16,6 +8,7 @@ const ADMIN_NAME = "System Admin";
 
 async function seedAdmin() {
   console.log("Starting admin seed...");
+  console.log("Database URL:", process.env.DATABASE_URL ? "Set" : "Not set");
 
   try {
     const existingAdmin = await prisma.user.findUnique({
@@ -60,7 +53,6 @@ async function seedAdmin() {
     console.log("Admin user created successfully!");
     console.log(`Email: ${ADMIN_EMAIL}`);
     console.log(`Password: ${ADMIN_PASSWORD}`);
-    console.log("Please change the password after first login.");
   } catch (error) {
     console.error("Error seeding admin:", error);
     throw error;
