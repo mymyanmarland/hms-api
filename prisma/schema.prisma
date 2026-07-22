@@ -81,6 +81,19 @@ model Verification {
   @@map("verification")
 }
 
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userId    String?
+
+  @@index([email])
+  @@index([code])
+  @@map("otpCode")
+}
+
 // ============================================
 // ROOM MANAGEMENT MODELS
 // ============================================

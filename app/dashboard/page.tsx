@@ -1,13 +1,36 @@
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { DataTable } from "@/components/data-table"
 import { SectionCards } from "@/components/section-cards"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import prisma from "@/lib/prisma";
 
 import data from "./data.json"
 
-export default function Page() {
+export default async function Page() {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("session")?.value;
+
+  if (!sessionToken) {
+    redirect("/login");
+  }
+
+  try {
+    const session = await prisma.session.findUnique({
+      where: { token: sessionToken },
+    });
+
+    if (!session || session.expiresAt < new Date()) {
+      cookieStore.delete("session");
+      redirect("/login");
+    }
+  } catch {
+    redirect("/login");
+  }
+
   return (
     <SidebarProvider
       style={
