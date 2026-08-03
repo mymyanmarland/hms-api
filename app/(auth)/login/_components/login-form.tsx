@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Mail, Lock, Shield, ArrowLeft, RefreshCw } from "lucide-react";
@@ -205,6 +206,15 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                   {credentialsForm.formState.errors.password.message}
                 </p>
               )}
+            </div>
+
+            <div className="flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-muted-foreground hover:text-primary"
+              >
+                Forgot password?
+              </Link>
             </div>
 
             <Button type="submit" className="w-full" disabled={isPending}>
