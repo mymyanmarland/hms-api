@@ -38,6 +38,15 @@ export const auth = betterAuth({
           return;
         }
 
+        if (process.env.RESEND_DEV_LOG_OTP?.toLowerCase() === "true") {
+          console.log("\n" + "=".repeat(60));
+          console.log("[DEV] Password reset OTP (email not sent)");
+          console.log(`[DEV] To: ${email}`);
+          console.log(`[DEV] OTP: ${otp}`);
+          console.log("=".repeat(60) + "\n");
+          return;
+        }
+
         try {
           await resend.emails.send({
             from: "HMS Admin <onboarding@resend.dev>",
