@@ -29,6 +29,9 @@ model User {
   guest Guest?
   staff Staff?
 
+  // Admin audit log
+  adminAuditLogs AdminAuditLog[]
+
   @@unique([email])
   @@map("user")
 }
@@ -693,6 +696,10 @@ model Staff {
   maintenanceTickets MaintenanceTicket[]
   shiftReports       ShiftReport[]
 
+  // Admin audit log
+  auditActionsTaken   AdminAuditLog[] @relation("AuditActor")
+  auditActionsAgainst AdminAuditLog[] @relation("AuditTarget")
+
   @@unique([email])
   @@index([role])
   @@index([isActive])
@@ -872,4 +879,41 @@ model NightAudit {
   @@unique([auditDate])
   @@index([status])
   @@map("night_audit")
+}
+
+// ============================================
+// ADMIN MANAGEMENT (Audit log)
+// ============================================
+
+enum AdminAction {
+  INVITE
+  UPDATE
+  DEACTIVATE
+  REACTIVATE
+  RESET_PASSWORD
+  DELETE
+}
+
+model AdminAuditLog {
+  id String @id @default(cuid())
+
+  actorStaffId  String? // Staff ID who performed the action
+  actorStaff    Staff?  @relation("AuditActor", fields: [actorStaffId], references: [id], onDelete: SetNull)
+
+  targetStaffId  String? // Staff ID that was affected (nullable for legacy actors)
+  targetStaff    Staff?  @relation("AuditTarget", fields: [targetStaffId], references: [id], onDelete: SetNull)
+
+  targetUserId String? // User ID that was affected
+  targetUser   User?   @relation(fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  action   AdminAction
+  metadata Json? // Changed fields, IP, etc.
+
+  createdAt DateTime @default(now())
+
+  @@index([actorStaffId])
+  @@index([targetStaffId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@map("admin_audit_log")
 }
