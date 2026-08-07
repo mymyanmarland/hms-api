@@ -49,7 +49,7 @@ export const auth = betterAuth({
 
         try {
           await resend.emails.send({
-            from: "HMS Admin <onboarding@resend.dev>",
+            from: "HMS Hotel <support@hms-api-kmn.online>",
             to: email,
             subject: "Your HMS Admin Password Reset Code",
             react: PasswordResetOtpTemplate({ otpCode: otp, userEmail: email }),

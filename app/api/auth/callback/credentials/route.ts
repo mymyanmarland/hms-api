@@ -14,7 +14,7 @@ function generateOtpCode(): string {
 async function sendOtpEmail(email: string, otpCode: string) {
   try {
     await resend.emails.send({
-      from: "HMS Admin <onboarding@resend.dev>",
+      from: "HMS Hotel <support@hms-api-kmn.online>",
       to: email,
       subject: "Your HMS Admin Login Verification Code",
       react: OtpEmailTemplate({ otpCode, userEmail: email }),
