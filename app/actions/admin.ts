@@ -22,6 +22,10 @@ import {
   type AdminActor,
 } from "@/lib/admin-auth";
 import { writeAuditLog } from "@/lib/audit";
+import {
+  hasPermission,
+  requirePermission,
+} from "@/lib/permissions";
 import type { ActionResponse } from "@/app/actions/password-reset";
 
 function flattenZodErrors(
@@ -92,6 +96,12 @@ export async function inviteAdminAction(
   try {
     actor = await requireAdminOrThrow();
   } catch {
+    return { success: false, error: "You do not have permission to invite admins." };
+  }
+
+  // Check permission
+  const hasPerm = await hasPermission(actor.user.id, "admin.create");
+  if (!hasPerm) {
     return { success: false, error: "You do not have permission to invite admins." };
   }
 
@@ -205,6 +215,12 @@ export async function updateAdminAction(
   try {
     actor = await requireAdminOrThrow();
   } catch {
+    return { success: false, error: "You do not have permission to edit admins." };
+  }
+
+  // Check permission
+  const hasPerm = await hasPermission(actor.user.id, "admin.update");
+  if (!hasPerm) {
     return { success: false, error: "You do not have permission to edit admins." };
   }
 
@@ -343,6 +359,12 @@ export async function deactivateAdminAction(
     return { success: false, error: "You do not have permission to deactivate admins." };
   }
 
+  // Check permission
+  const hasPerm = await hasPermission(actor.user.id, "admin.deactivate");
+  if (!hasPerm) {
+    return { success: false, error: "You do not have permission to deactivate admins." };
+  }
+
   const { staffId } = parsed.data;
 
   try {
@@ -421,6 +443,12 @@ export async function reactivateAdminAction(
     return { success: false, error: "You do not have permission to reactivate admins." };
   }
 
+  // Check permission
+  const hasPerm = await hasPermission(actor.user.id, "admin.reactivate");
+  if (!hasPerm) {
+    return { success: false, error: "You do not have permission to reactivate admins." };
+  }
+
   const { staffId } = parsed.data;
 
   try {
@@ -478,6 +506,12 @@ export async function resetAdminPasswordAction(
   try {
     actor = await requireAdminOrThrow();
   } catch {
+    return { success: false, error: "You do not have permission to reset passwords." };
+  }
+
+  // Check permission
+  const hasPerm = await hasPermission(actor.user.id, "admin.reset_password");
+  if (!hasPerm) {
     return { success: false, error: "You do not have permission to reset passwords." };
   }
 
@@ -539,6 +573,12 @@ export async function deleteAdminAction(
   try {
     actor = await requireAdminOrThrow();
   } catch {
+    return { success: false, error: "You do not have permission to delete admins." };
+  }
+
+  // Check permission
+  const hasPerm = await hasPermission(actor.user.id, "admin.delete");
+  if (!hasPerm) {
     return { success: false, error: "You do not have permission to delete admins." };
   }
 

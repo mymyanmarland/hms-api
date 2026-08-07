@@ -62,6 +62,14 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        adminRole: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isSuperRole: true,
+          },
+        },
       },
     });
 
@@ -87,6 +95,10 @@ export async function GET(request: NextRequest) {
         createdAt: admin.createdAt,
         emailVerified: admin.user?.emailVerified ?? false,
         lastActiveAt: admin.user?.sessions?.[0]?.expiresAt ?? null,
+        roleId: admin.adminRole?.id ?? null,
+        roleName: admin.adminRole?.name ?? null,
+        roleDescription: admin.adminRole?.description ?? null,
+        isSuperAdmin: admin.adminRole?.isSuperRole ?? false,
       })),
       nextCursor,
       total,

@@ -690,6 +690,10 @@ model Staff {
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  // Admin role relation (optional - if set, overrides StaffRole for admin permissions)
+  adminRoleId String?
+  adminRole   Role?   @relation(fields: [adminRoleId], references: [id], onDelete: SetNull)
+
   // Relations
   shifts             Shift[]
   housekeepingTasks  HousekeepingTask[]
@@ -703,6 +707,7 @@ model Staff {
   @@unique([email])
   @@index([role])
   @@index([isActive])
+  @@index([adminRoleId])
   @@map("staff")
 }
 
@@ -916,4 +921,57 @@ model AdminAuditLog {
   @@index([targetUserId])
   @@index([createdAt])
   @@map("admin_audit_log")
+}
+
+// ============================================
+// ROLES AND PERMISSIONS MODELS
+// ============================================
+
+// Permission model - granular permissions for admin actions
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "admin.create", "staff.read"
+  description String?  // Human-readable description
+  resource    String   // e.g., "admin", "staff", "report", "room"
+  action      String   // e.g., "create", "read", "update", "delete", "deactivate", "reset_password"
+  createdAt   DateTime @default(now())
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@index([resource])
+  @@index([action])
+  @@map("permission")
+}
+
+// Role model - groups of permissions
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "super_admin", "manager"
+  description String?  // Human-readable description
+  isSuperRole Boolean  @default(false) // Super Admin has all permissions automatically
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  rolePermissions RolePermission[]
+  staff           Staff[] // Staff members assigned to this role
+
+  @@map("role")
+}
+
+// Junction table for Role-Permission relationship
+model RolePermission {
+  id           String      @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime    @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permission")
 }

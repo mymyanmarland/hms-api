@@ -16,6 +16,7 @@ import {
 import {
   LayoutDashboardIcon,
   ShieldUserIcon,
+  ShieldCheckIcon,
   CommandIcon,
 } from "lucide-react"
 
@@ -35,6 +36,11 @@ const data = {
       title: "Admin Management",
       url: "/dashboard/admins",
       icon: <ShieldUserIcon />,
+    },
+    {
+      title: "Roles & Permissions",
+      url: "/dashboard/roles",
+      icon: <ShieldCheckIcon />,
     },
   ],
 }

@@ -25,6 +25,7 @@ import { EditAdminDialog } from "./edit-admin-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
 import { DeactivateAdminDialog } from "./deactivate-admin-dialog";
 import { DeleteAdminDialog } from "./delete-admin-dialog";
+import { AssignRoleDialog } from "./assign-role-dialog";
 
 export type AdminRow = {
   id: string;
@@ -36,6 +37,10 @@ export type AdminRow = {
   createdAt: string;
   emailVerified: boolean;
   lastActiveAt: string | null;
+  roleId: string | null;
+  roleName: string | null;
+  roleDescription: string | null;
+  isSuperAdmin: boolean;
 };
 
 export type AdminsListResponse = {
@@ -79,6 +84,7 @@ export function AdminsView() {
   const [resetting, setResetting] = React.useState<AdminRow | null>(null);
   const [deactivating, setDeactivating] = React.useState<AdminRow | null>(null);
   const [deleting, setDeleting] = React.useState<AdminRow | null>(null);
+  const [assigningRole, setAssigningRole] = React.useState<AdminRow | null>(null);
 
   // Debounce search input
   React.useEffect(() => {
@@ -181,6 +187,7 @@ export function AdminsView() {
               onReset={setResetting}
               onDeactivate={setDeactivating}
               onDelete={setDeleting}
+              onAssignRole={setAssigningRole}
             />
           )}
         </CardContent>
@@ -246,6 +253,20 @@ export function AdminsView() {
           }}
         />
       ) : null}
+
+      {assigningRole ? (
+        <AssignRoleDialog
+          admin={assigningRole}
+          open={!!assigningRole}
+          onOpenChange={(open) => {
+            if (!open) setAssigningRole(null);
+          }}
+          onSuccess={() => {
+            toast.success("Role assigned successfully");
+            refresh();
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -256,12 +277,14 @@ function AdminsTable({
   onReset,
   onDeactivate,
   onDelete,
+  onAssignRole,
 }: {
   admins: AdminRow[];
   onEdit: (admin: AdminRow) => void;
   onReset: (admin: AdminRow) => void;
   onDeactivate: (admin: AdminRow) => void;
   onDelete: (admin: AdminRow) => void;
+  onAssignRole: (admin: AdminRow) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border">
@@ -270,6 +293,7 @@ function AdminsTable({
           <tr className="border-b">
             <th className="px-3 py-2 font-medium">Name</th>
             <th className="px-3 py-2 font-medium">Email</th>
+            <th className="px-3 py-2 font-medium">Role</th>
             <th className="px-3 py-2 font-medium">Status</th>
             <th className="px-3 py-2 font-medium">Verified</th>
             <th className="px-3 py-2 font-medium">Created</th>
@@ -289,6 +313,15 @@ function AdminsTable({
               </td>
               <td className="px-3 py-2 text-muted-foreground">{admin.email}</td>
               <td className="px-3 py-2">
+                {admin.isSuperAdmin ? (
+                  <Badge variant="default" className="bg-primary">Super Admin</Badge>
+                ) : admin.roleName ? (
+                  <Badge variant="secondary">{admin.roleName}</Badge>
+                ) : (
+                  <span className="text-muted-foreground text-xs">No role</span>
+                )}
+              </td>
+              <td className="px-3 py-2">
                 {admin.isActive ? (
                   <Badge variant="secondary">Active</Badge>
                 ) : (
@@ -303,6 +336,13 @@ function AdminsTable({
               </td>
               <td className="px-3 py-2">
                 <div className="flex items-center justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAssignRole(admin)}
+                  >
+                    Assign role
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
