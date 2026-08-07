@@ -18,14 +18,36 @@ export default async function Page() {
     redirect("/login");
   }
 
+  let userData = { name: "User", email: "", avatar: "" };
+
   try {
     const session = await prisma.session.findUnique({
       where: { token: sessionToken },
+      include: {
+        user: {
+          include: {
+            staff: true,
+          },
+        },
+      },
     });
 
     if (!session || session.expiresAt < new Date()) {
       cookieStore.delete("session");
       redirect("/login");
+    }
+
+    // Fetch user data for sidebar
+    if (session.user) {
+      const userName = session.user.staff
+        ? `${session.user.staff.firstName} ${session.user.staff.lastName}`.trim()
+        : session.user.name;
+
+      userData = {
+        name: userName || session.user.email,
+        email: session.user.email,
+        avatar: session.user.image || "",
+      };
     }
   } catch {
     redirect("/login");
@@ -40,7 +62,7 @@ export default async function Page() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="inset" userData={userData} />
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col">

@@ -21,11 +21,6 @@ import {
 } from "lucide-react"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
@@ -45,7 +40,24 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+// Default user data while loading
+const defaultUser = {
+  name: "Loading...",
+  email: "",
+  avatar: "",
+};
+
+export function AppSidebar({ userData, ...props }: React.ComponentProps<typeof Sidebar> & { userData?: { name: string; email: string; avatar: string } }) {
+  const user = userData || defaultUser;
+
+  // Generate initials from name
+  const initials = user.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -57,7 +69,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <CommandIcon className="size-5!" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">HMS Admin</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -67,7 +79,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} initials={initials} />
       </SidebarFooter>
     </Sidebar>
   )
