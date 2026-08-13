@@ -3,7 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 import { render } from "@react-email/render";
 import prisma from "@/lib/prisma";
-import { getMailTransport } from "@/lib/mail";
+import { getMailTransport, getFromAddress } from "@/lib/mail";
 import { LoginOtpTemplate } from "@/app/emails/login-otp-template";
 import { SignupOtpTemplate } from "@/app/emails/signup-otp-template";
 import { PasswordResetOtpTemplate } from "@/app/emails/password-reset-otp-template";
@@ -89,9 +89,7 @@ export const auth = betterAuth({
 
         try {
           const transport = await getMailTransport();
-          const fromAddress =
-            process.env.RESEND_FROM_EMAIL?.trim() ||
-            (process.env.GMAIL_USER ? `HMS Booking <${process.env.GMAIL_USER}>` : "unknown");
+          const fromAddress = getFromAddress();
           console.log(
             `[mail] sending ${type} OTP via ${transport.kind} from "${fromAddress}" -> ${email}`
           );

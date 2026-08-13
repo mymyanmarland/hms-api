@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import resend from "@/lib/resend";
+import { getFromAddress } from "@/lib/mail";
 import { AdminInviteTemplate } from "@/app/emails/admin-invite-template";
 import {
   inviteAdminSchema,
@@ -62,7 +63,7 @@ async function sendAdminInviteEmail(
 
   try {
     await resend.emails.send({
-      from: "HMS Hotel <support@hms-api-kmn.online>",
+      from: getFromAddress(),
       to,
       subject: "You have been invited to HMS Admin",
       react: AdminInviteTemplate({

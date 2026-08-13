@@ -34,6 +34,16 @@ const RESEND_FROM_EMAIL =
 const GMAIL_USER = process.env.GMAIL_USER?.trim();
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD?.trim();
 
+/**
+ * Single source of truth for the `from` address used by every email path
+ * (Better Auth OTP hook + admin invite + credential/resend-OTP routes).
+ * Reads `RESEND_FROM_EMAIL` so the value can be changed in one place
+ * (`hms-api/.env`) without code edits.
+ */
+export function getFromAddress(): string {
+  return RESEND_FROM_EMAIL;
+}
+
 let cachedTransport: MailTransport | null = null;
 
 async function buildResendTransport(): Promise<MailTransport | null> {
@@ -46,7 +56,7 @@ async function buildResendTransport(): Promise<MailTransport | null> {
   // `ready: true` if the from address is on a custom (verifiable) domain,
   // otherwise Resend's onboarding sender will reject arbitrary recipients.
   const isVerifiedDomain = !RESEND_FROM_EMAIL.includes("@resend.dev");
-  const fromDisplay = RESEND_FROM_EMAIL;
+  const fromDisplay = getFromAddress();
 
   return {
     ready: isVerifiedDomain,

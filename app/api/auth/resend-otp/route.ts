@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import resend from "@/lib/resend";
+import { getFromAddress } from "@/lib/mail";
 import { OtpEmailTemplate } from "@/app/emails/otp-template";
 
 const OTP_EXPIRY_MINUTES = 10;
@@ -13,7 +14,7 @@ function generateOtpCode(): string {
 async function sendOtpEmail(email: string, otpCode: string) {
   try {
     await resend.emails.send({
-      from: "HMS Hotel <support@hms-api-kmn.online>",
+      from: getFromAddress(),
       to: email,
       subject: "Your HMS Admin Login Verification Code",
       react: OtpEmailTemplate({ otpCode, userEmail: email }),
