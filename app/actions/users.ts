@@ -1,10 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import resend from "@/lib/resend";
+import { getFromAddress } from "@/lib/mail";
+import { UserInviteTemplate } from "@/app/emails/user-invite-template";
 import {
+  createUserSchema,
   updateUserSchema,
   userIdSchema,
+  type CreateUserInput,
   type UpdateUserInput,
   type UserIdInput,
 } from "@/lib/validations/users";
@@ -13,6 +19,7 @@ import {
   type AdminActor,
 } from "@/lib/admin-auth";
 import { writeAuditLog } from "@/lib/audit";
+import { isSuperAdmin } from "@/lib/permissions";
 import type { ActionResponse } from "@/app/actions/password-reset";
 
 function flattenZodErrors(
@@ -26,6 +33,154 @@ function flattenZodErrors(
   }
   return result;
 }
+
+function getLoginUrl(): string {
+  return (
+    process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+  ).replace(/\/$/, "");
+}
+
+async function sendUserInviteEmail(
+  to: string,
+  name: string,
+  temporaryPassword: string,
+): Promise<void> {
+  if (process.env.RESEND_DEV_LOG_OTP?.toLowerCase() === "true") {
+    console.log("\n" + "=".repeat(60));
+    console.log("[DEV] User invite (email not sent)");
+    console.log(`[DEV] To: ${to}`);
+    console.log(`[DEV] Temporary password: ${temporaryPassword}`);
+    console.log("=".repeat(60) + "\n");
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: getFromAddress(),
+      to,
+      subject: "You have been invited to HMS",
+      react: UserInviteTemplate({
+        userName: name,
+        userEmail: to,
+        temporaryPassword,
+        loginUrl: `${getLoginUrl()}/login`,
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to send user invite email:", error);
+    throw new Error("Failed to send user invite email");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Create a customer user (Super Admin only)
+// ---------------------------------------------------------------------------
+export async function createUserAction(
+  input: CreateUserInput,
+): Promise<ActionResponse<{ userId: string }>> {
+  const parsed = createUserSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      fieldErrors: flattenZodErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  let actor: AdminActor;
+  try {
+    actor = await requireAdminOrThrow();
+  } catch {
+    return { success: false, error: "You do not have permission to create users." };
+  }
+
+  // Only Super Admins can manually create customer accounts.
+  const isSuper = await isSuperAdmin(actor.user.id);
+  if (!isSuper) {
+    return {
+      success: false,
+      error: "Only Super Admins can create customer accounts.",
+    };
+  }
+
+  const { name, email, temporaryPassword } = parsed.data;
+  const normalizedEmail = email.toLowerCase();
+
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        staff: { select: { id: true } },
+      },
+    });
+
+    if (existingUser) {
+      const message = existingUser.staff
+        ? "An admin account already uses this email."
+        : "An account with this email already exists.";
+      return {
+        success: false,
+        fieldErrors: { email: [message] },
+      };
+    }
+
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
+
+    const created = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          id: `user_${Date.now()}`,
+          name,
+          email: normalizedEmail,
+          emailVerified: false,
+        },
+        select: { id: true },
+      });
+
+      await tx.account.create({
+        data: {
+          id: `acc_${Date.now()}`,
+          userId: user.id,
+          accountId: user.id,
+          providerId: "credential",
+          password: hashedPassword,
+        },
+      });
+
+      return { userId: user.id };
+    });
+
+    await writeAuditLog({
+      action: "INVITE",
+      actorStaffId: actor.staff.id,
+      targetUserId: created.userId,
+      metadata: { email: normalizedEmail, source: "user_management_super_admin" },
+    });
+
+    try {
+      await sendUserInviteEmail(normalizedEmail, name, temporaryPassword);
+    } catch (error) {
+      console.error("User invite email failed:", error);
+      revalidatePath("/dashboard/users");
+      return {
+        success: true,
+        data: created,
+        error:
+          "User was created but we could not send the invite email. Share the temporary password manually.",
+      };
+    }
+
+    revalidatePath("/dashboard/users");
+    return { success: true, data: created };
+  } catch (error) {
+    console.error("Create user error:", error);
+    return {
+      success: false,
+      error: "We could not create that user. Please try again.",
+    };
+  }
+}
+
 
 // ---------------------------------------------------------------------------
 // Update user profile
@@ -252,6 +407,20 @@ export async function deleteUserAction(
           data: { userId: null },
         });
       }
+      // Ban the email so the mobile app's auto-signup flow cannot resurrect
+      // this account on the next sign-in attempt.
+      await tx.bannedEmail.upsert({
+        where: { email: user.email },
+        create: {
+          email: user.email,
+          reason: "deleted_by_admin",
+          bannedById: actor.staff.id,
+        },
+        update: {
+          reason: "deleted_by_admin",
+          bannedById: actor.staff.id,
+        },
+      });
       await tx.user.delete({ where: { id: userId } });
     });
 

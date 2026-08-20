@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
+import { APIError } from "better-auth/api";
 import { render } from "@react-email/render";
 import prisma from "@/lib/prisma";
 import { getMailTransport, getFromAddress } from "@/lib/mail";
@@ -24,6 +25,30 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          // Reject any new user whose email was previously deleted by an
+          // admin — better-auth's emailOTP flow auto-signs-up users, so a
+          // banned email would otherwise be silently resurrected on next
+          // mobile sign-in attempt.
+          const email = user.email?.toLowerCase();
+          if (!email) return;
+          const banned = await prisma.bannedEmail.findUnique({
+            where: { email },
+            select: { id: true },
+          });
+          if (banned) {
+            throw new APIError("FORBIDDEN", {
+              message:
+                "This email is no longer permitted to register. Please contact support.",
+            });
+          }
+        },
+      },
+    },
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,

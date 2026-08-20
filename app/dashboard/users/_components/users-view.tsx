@@ -4,6 +4,7 @@ import * as React from "react";
 import useSWR from "swr";
 import {
   PencilIcon,
+  PlusIcon,
   RefreshCwIcon,
   Trash2Icon,
   UserIcon,
@@ -29,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { EditUserDialog } from "./edit-user-dialog";
 import { DeactivateUserDialog } from "./deactivate-user-dialog";
 import { DeleteUserDialog } from "./delete-user-dialog";
+import { InviteUserDialog } from "./invite-user-dialog";
 
 export type UserRow = {
   id: string;
@@ -76,7 +78,7 @@ function buildKey(
   return ["/api/users", qs, status, cursor];
 }
 
-export function UsersView() {
+export function UsersView({ canCreateUsers }: { canCreateUsers: boolean }) {
   const [searchInput, setSearchInput] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [status, setStatus] = React.useState<"all" | "active" | "inactive">(
@@ -85,6 +87,7 @@ export function UsersView() {
   const [editing, setEditing] = React.useState<UserRow | null>(null);
   const [deactivating, setDeactivating] = React.useState<UserRow | null>(null);
   const [deleting, setDeleting] = React.useState<UserRow | null>(null);
+  const [inviting, setInviting] = React.useState(false);
 
   // Debounce search input
   React.useEffect(() => {
@@ -124,6 +127,15 @@ export function UsersView() {
             <Badge variant="secondary">
               {total} {total === 1 ? "user" : "users"}
             </Badge>
+            {canCreateUsers ? (
+              <Badge
+                variant="default"
+                className="bg-primary"
+                title="You can create customer accounts"
+              >
+                Super Admin
+              </Badge>
+            ) : null}
             <Button
               variant="outline"
               size="sm"
@@ -136,6 +148,12 @@ export function UsersView() {
               />
               <span className="hidden lg:inline">Refresh</span>
             </Button>
+            {canCreateUsers ? (
+              <Button size="sm" onClick={() => setInviting(true)}>
+                <PlusIcon />
+                Create user
+              </Button>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -224,6 +242,17 @@ export function UsersView() {
           }}
           onSuccess={() => {
             toast.success("User deleted");
+            refresh();
+          }}
+        />
+      ) : null}
+
+      {canCreateUsers ? (
+        <InviteUserDialog
+          open={inviting}
+          onOpenChange={setInviting}
+          onSuccess={() => {
+            toast.success("User created");
             refresh();
           }}
         />

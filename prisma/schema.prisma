@@ -97,6 +97,21 @@ model OtpCode {
   @@map("otpCode")
 }
 
+/// Emails that are banned from re-registering. Populated when an admin
+/// deletes a customer account so the user cannot simply sign in again via
+/// the mobile app's auto-signup email-OTP flow. The create-user hook in
+/// `lib/auth.ts` rejects any new User whose email is present here.
+model BannedEmail {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  reason      String?
+  bannedById  String?
+  bannedByStaff Staff? @relation(fields: [bannedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@map("banned_email")
+}
+
 // ============================================
 // ROOM MANAGEMENT MODELS
 // ============================================
@@ -703,6 +718,9 @@ model Staff {
   // Admin audit log
   auditActionsTaken   AdminAuditLog[] @relation("AuditActor")
   auditActionsAgainst AdminAuditLog[] @relation("AuditTarget")
+
+  // Emails this admin has banned
+  emailsBanned BannedEmail[]
 
   @@unique([email])
   @@index([role])

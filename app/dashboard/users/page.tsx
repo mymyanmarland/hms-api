@@ -9,6 +9,7 @@ import {
 import { UsersView } from "./_components/users-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAdmin } from "@/lib/admin-auth";
+import { isSuperAdmin } from "@/lib/permissions";
 
 export default async function UsersPage() {
   const actor = await requireAdmin();
@@ -16,6 +17,8 @@ export default async function UsersPage() {
   if (!actor) {
     redirect("/login");
   }
+
+  const canCreateUsers = await isSuperAdmin(actor.user.id);
 
   return (
     <SidebarProvider
@@ -33,7 +36,7 @@ export default async function UsersPage() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <Suspense fallback={<UsersSkeleton />}>
-                <UsersView />
+                <UsersView canCreateUsers={canCreateUsers} />
               </Suspense>
             </div>
           </div>
