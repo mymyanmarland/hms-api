@@ -17,6 +17,7 @@ import {
   LayoutDashboardIcon,
   ShieldUserIcon,
   ShieldCheckIcon,
+  UserIcon,
   CommandIcon,
 } from "lucide-react"
 
@@ -26,6 +27,11 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: <LayoutDashboardIcon />,
+    },
+    {
+      title: "User Management",
+      url: "/dashboard/users",
+      icon: <UserIcon />,
     },
     {
       title: "Admin Management",

@@ -897,16 +897,17 @@ enum AdminAction {
   REACTIVATE
   RESET_PASSWORD
   DELETE
+  REVOKE_SESSIONS
 }
 
 model AdminAuditLog {
   id String @id @default(cuid())
 
-  actorStaffId  String? // Staff ID who performed the action
-  actorStaff    Staff?  @relation("AuditActor", fields: [actorStaffId], references: [id], onDelete: SetNull)
+  actorStaffId String? // Staff ID who performed the action
+  actorStaff   Staff?  @relation("AuditActor", fields: [actorStaffId], references: [id], onDelete: SetNull)
 
-  targetStaffId  String? // Staff ID that was affected (nullable for legacy actors)
-  targetStaff    Staff?  @relation("AuditTarget", fields: [targetStaffId], references: [id], onDelete: SetNull)
+  targetStaffId String? // Staff ID that was affected (nullable for legacy actors)
+  targetStaff   Staff?  @relation("AuditTarget", fields: [targetStaffId], references: [id], onDelete: SetNull)
 
   targetUserId String? // User ID that was affected
   targetUser   User?   @relation(fields: [targetUserId], references: [id], onDelete: SetNull)
@@ -931,9 +932,9 @@ model AdminAuditLog {
 model Permission {
   id          String   @id @default(cuid())
   name        String   @unique // e.g., "admin.create", "staff.read"
-  description String?  // Human-readable description
-  resource    String   // e.g., "admin", "staff", "report", "room"
-  action      String   // e.g., "create", "read", "update", "delete", "deactivate", "reset_password"
+  description String? // Human-readable description
+  resource    String // e.g., "admin", "staff", "report", "room"
+  action      String // e.g., "create", "read", "update", "delete", "deactivate", "reset_password"
   createdAt   DateTime @default(now())
 
   // Relations
@@ -948,7 +949,7 @@ model Permission {
 model Role {
   id          String   @id @default(cuid())
   name        String   @unique // e.g., "super_admin", "manager"
-  description String?  // Human-readable description
+  description String? // Human-readable description
   isSuperRole Boolean  @default(false) // Super Admin has all permissions automatically
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -962,10 +963,10 @@ model Role {
 
 // Junction table for Role-Permission relationship
 model RolePermission {
-  id           String      @id @default(cuid())
+  id           String   @id @default(cuid())
   roleId       String
   permissionId String
-  createdAt    DateTime    @default(now())
+  createdAt    DateTime @default(now())
 
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
