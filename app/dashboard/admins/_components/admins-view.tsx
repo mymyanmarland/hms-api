@@ -287,8 +287,8 @@ function AdminsTable({
   onAssignRole: (admin: AdminRow) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full min-w-[1100px] text-sm">
         <thead className="bg-muted/60 text-left">
           <tr className="border-b">
             <th className="px-3 py-2 font-medium">Name</th>
