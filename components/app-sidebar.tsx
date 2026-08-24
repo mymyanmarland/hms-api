@@ -19,6 +19,7 @@ import {
   ShieldCheckIcon,
   UserIcon,
   CommandIcon,
+  CalendarRangeIcon,
 } from "lucide-react"
 
 const data = {
@@ -27,6 +28,11 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: <LayoutDashboardIcon />,
+    },
+    {
+      title: "Booking Calendar",
+      url: "/dashboard/calendar",
+      icon: <CalendarRangeIcon />,
     },
     {
       title: "User Management",
