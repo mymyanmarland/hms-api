@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
+import { verifyPassword } from "@better-auth/utils/password";
 import prisma from "@/lib/prisma";
 import resend from "@/lib/resend";
 import { getFromAddress } from "@/lib/mail";
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValidPassword = await bcrypt.compare(password, account.password);
+    const isValidPassword = await verifyPassword(account.password, password);
     if (!isValidPassword) {
       return NextResponse.json(
         { error: "Invalid email or password" },

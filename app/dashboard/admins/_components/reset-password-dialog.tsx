@@ -4,7 +4,7 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Check, Copy, Loader2 } from "lucide-react";
 
 import {
   Dialog,
@@ -86,12 +86,15 @@ function ResetPasswordFormBody({
 }) {
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [isPending, startTransition] = React.useTransition();
+  const [resetPassword, setResetPassword] = React.useState<string | null>(null);
+  const [hasCopied, setHasCopied] = React.useState(false);
 
   const {
     register,
     handleSubmit,
     setError,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<ResetAdminPasswordInput>({
     resolver: zodResolver(resetAdminPasswordSchema),
@@ -106,10 +109,11 @@ function ResetPasswordFormBody({
     startTransition(async () => {
       const result = await resetAdminPasswordAction(data);
       if (result.success) {
+        setResetPassword(data.newPassword);
+        setHasCopied(false);
         toast.success(
-          "Password reset. The admin will need to sign in again with the new password.",
+          "Password reset. Share the new password with the admin securely.",
         );
-        onOpenChange(false);
       } else if (result.fieldErrors) {
         for (const [key, messages] of Object.entries(result.fieldErrors)) {
           if (messages?.[0]) {
@@ -124,6 +128,90 @@ function ResetPasswordFormBody({
       }
     });
   });
+
+  const handleCopy = async () => {
+    if (!resetPassword) return;
+    try {
+      await navigator.clipboard.writeText(resetPassword);
+      setHasCopied(true);
+      window.setTimeout(() => setHasCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy to clipboard. Please copy it manually.");
+    }
+  };
+
+  const handleResetForAnother = () => {
+    setResetPassword(null);
+    setHasCopied(false);
+    setServerError(null);
+    setValue("newPassword", generateStrongPassword(), { shouldValidate: true });
+  };
+
+  // Watch the current input value so the "copy" control always reflects
+  // the latest generated/edited password before the action has resolved.
+  const currentPassword = watch("newPassword");
+
+  if (resetPassword !== null) {
+    return (
+      <div className="flex flex-col gap-4">
+        <DialogHeader>
+          <DialogTitle>Password reset</DialogTitle>
+          <DialogDescription>
+            {admin.name} will need to sign in again with the new password
+            below. All of their active sessions have been signed out.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+          Copy this password and share it with the admin through a secure
+          channel. It will not be shown again after you close this dialog.
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="reset-password-success">New password</Label>
+          <div className="flex items-stretch gap-2">
+            <Input
+              id="reset-password-success"
+              readOnly
+              value={resetPassword}
+              className="font-mono"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCopy}
+              aria-label="Copy password"
+            >
+              {hasCopied ? (
+                <>
+                  <Check className="size-4" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="size-4" />
+                  Copy
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleResetForAnother}
+          >
+            Reset another password
+          </Button>
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </DialogFooter>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -143,7 +231,16 @@ function ResetPasswordFormBody({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="reset-password">New password</Label>
-            <Input id="reset-password" {...register("newPassword")} />
+            <Input
+              id="reset-password"
+              {...register("newPassword")}
+              value={currentPassword}
+              onChange={(event) =>
+                setValue("newPassword", event.target.value, {
+                  shouldValidate: true,
+                })
+              }
+            />
             {errors.newPassword?.message ? (
               <p className="text-xs text-destructive">
                 {errors.newPassword.message}

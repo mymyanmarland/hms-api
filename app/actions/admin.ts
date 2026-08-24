@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@better-auth/utils/password";
 import prisma from "@/lib/prisma";
 import resend from "@/lib/resend";
 import { getFromAddress } from "@/lib/mail";
@@ -123,7 +123,7 @@ export async function inviteAdminAction(
       };
     }
 
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
+    const hashedPassword = await hashPassword(temporaryPassword);
 
     const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -528,7 +528,7 @@ export async function resetAdminPasswordAction(
       return { success: false, error: "Admin not found." };
     }
 
-    const hashed = await bcrypt.hash(newPassword, 12);
+    const hashed = await hashPassword(newPassword);
 
     await prisma.$transaction(async (tx) => {
       await tx.account.updateMany({

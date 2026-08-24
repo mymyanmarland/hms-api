@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@better-auth/utils/password";
 import prisma from "@/lib/prisma";
 import resend from "@/lib/resend";
 import { getFromAddress } from "@/lib/mail";
@@ -124,7 +124,7 @@ export async function createUserAction(
       };
     }
 
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
+    const hashedPassword = await hashPassword(temporaryPassword);
 
     const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({

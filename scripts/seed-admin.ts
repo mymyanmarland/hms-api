@@ -1,5 +1,5 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@better-auth/utils/password";
 import prisma from "@/lib/prisma";
 
 const ADMIN_EMAIL = "admin@hms.com";
@@ -18,7 +18,7 @@ async function seedAdmin() {
     if (existingAdmin) {
       console.log("Admin user already exists. Updating password...");
 
-      const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
+      const hashedPassword = await hashPassword(ADMIN_PASSWORD);
 
       await prisma.account.updateMany({
         where: { userId: existingAdmin.id },
@@ -29,7 +29,7 @@ async function seedAdmin() {
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
+    const hashedPassword = await hashPassword(ADMIN_PASSWORD);
 
     const adminUser = await prisma.user.create({
       data: {
