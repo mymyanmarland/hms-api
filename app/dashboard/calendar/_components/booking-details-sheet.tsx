@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -55,6 +56,13 @@ export function BookingDetailsSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const router = useRouter();
+
+  const handleManageCheckIn = () => {
+    onOpenChange(false);
+    router.push("/dashboard/frontdesk");
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="sm:max-w-md">
@@ -131,13 +139,19 @@ export function BookingDetailsSheet({
               <Button variant="outline" size="sm" disabled>
                 View folio
               </Button>
-              <Button variant="default" size="sm" disabled>
-                Manage check-in
-              </Button>
+              {(booking.status === "CONFIRMED" || booking.status === "TENTATIVE") && (
+                <Button variant="default" size="sm" onClick={handleManageCheckIn}>
+                  Check In
+                </Button>
+              )}
+              {booking.status === "CHECKED_IN" && (
+                <Button variant="default" size="sm" onClick={handleManageCheckIn}>
+                  Check Out
+                </Button>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Detailed actions will be enabled in the Reservation & Front Desk
-              workflow rollout.
+              Use the Front Desk to manage arrivals and departures.
             </p>
           </div>
         ) : null}

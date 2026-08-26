@@ -20,6 +20,8 @@ import {
   UserIcon,
   CommandIcon,
   CalendarRangeIcon,
+  UsersIcon,
+  ClipboardListIcon,
 } from "lucide-react"
 
 const data = {
@@ -30,9 +32,19 @@ const data = {
       icon: <LayoutDashboardIcon />,
     },
     {
+      title: "Front Desk",
+      url: "/dashboard/frontdesk",
+      icon: <ClipboardListIcon />,
+    },
+    {
       title: "Booking Calendar",
       url: "/dashboard/calendar",
       icon: <CalendarRangeIcon />,
+    },
+    {
+      title: "Group Bookings",
+      url: "/dashboard/group-bookings",
+      icon: <UsersIcon />,
     },
     {
       title: "User Management",

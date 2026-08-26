@@ -3,6 +3,7 @@ import { ShieldCheckIcon, KeyIcon } from "lucide-react";
 import { requireAdminOrThrow } from "@/lib/admin-auth";
 import { hasPermission } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
+import { BackButton } from "@/components/back-button";
 import { RolesList } from "./_components/roles-list";
 import { PermissionsList } from "./_components/permissions-list";
 
@@ -76,14 +77,17 @@ export default async function RolesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="px-4 lg:px-6">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldCheckIcon className="size-6" />
-            Roles & Permissions
-          </h1>
-          <p className="text-muted-foreground">
-            Manage roles and their associated permissions for admin access control.
-          </p>
+        <div className="flex flex-col gap-3 pt-2">
+          <BackButton href="/dashboard" label="Back to Dashboard" />
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ShieldCheckIcon className="size-6" />
+              Roles & Permissions
+            </h1>
+            <p className="text-muted-foreground">
+              Manage roles and their associated permissions for admin access control.
+            </p>
+          </div>
         </div>
       </div>
 

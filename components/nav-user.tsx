@@ -1,5 +1,7 @@
 "use client"
 
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Avatar,
   AvatarFallback,
@@ -34,6 +36,7 @@ export function NavUser({
   initials?: string
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter();
 
   // Use provided initials or generate from name
   const displayInitials = initials || user.name
@@ -42,6 +45,26 @@ export function NavUser({
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+
+      if (response.ok || response.redirected) {
+        toast.success("Logged out successfully");
+        router.push("/login");
+        router.refresh();
+      } else {
+        toast.error("Failed to log out. Please try again.");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to log out. Please try again.");
+    }
+  };
 
   return (
     <SidebarMenu>
@@ -108,7 +131,10 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onSelect={(event) => {
+              event.preventDefault();
+              void handleLogout();
+            }}>
               <LogOutIcon
               />
               Log out

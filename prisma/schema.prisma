@@ -1,6 +1,3 @@
-// HMS Hotel Management System - Prisma Schema
-// Single hotel deployment for HMS Hotel operations
-
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
@@ -10,36 +7,27 @@ datasource db {
   provider = "postgresql"
 }
 
-// ============================================
-// AUTHENTICATION MODELS
-// ============================================
-
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-
-  // HMS Relations
-  guest Guest?
-  staff Staff?
-
-  // Admin audit log
+  id             String          @id
+  name           String
+  email          String          @unique
+  emailVerified  Boolean         @default(false)
+  image          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  accounts       Account[]
   adminAuditLogs AdminAuditLog[]
+  guest          Guest?
+  sessions       Session[]
+  staff          Staff?
 
-  @@unique([email])
   @@map("user")
 }
 
 model Session {
   id        String   @id
   expiresAt DateTime
-  token     String
+  token     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   ipAddress String?
@@ -47,7 +35,6 @@ model Session {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
   @@index([userId])
   @@map("session")
 }
@@ -57,7 +44,6 @@ model Account {
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -67,6 +53,7 @@ model Account {
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("account")
@@ -102,67 +89,48 @@ model OtpCode {
 /// the mobile app's auto-signup email-OTP flow. The create-user hook in
 /// `lib/auth.ts` rejects any new User whose email is present here.
 model BannedEmail {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  reason      String?
-  bannedById  String?
-  bannedByStaff Staff? @relation(fields: [bannedById], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  email         String   @unique
+  reason        String?
+  bannedById    String?
+  createdAt     DateTime @default(now())
+  bannedByStaff Staff?   @relation(fields: [bannedById], references: [id])
 
   @@map("banned_email")
 }
 
-// ============================================
-// ROOM MANAGEMENT MODELS
-// ============================================
-
 model RoomType {
   id           String   @id @default(uuid())
-  name         String // e.g., "Deluxe Suite", "Standard Room"
+  name         String
   description  String?
   basePrice    Decimal  @db.Decimal(10, 2)
   maxOccupancy Int      @default(2)
-  bedConfig    String? // e.g., "1 King", "2 Queen"
-  amenities    String[] // Array of amenities
-  images       String[] // Array of image URLs
+  bedConfig    String?
+  amenities    String[]
+  images       String[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  rooms Room[]
+  rooms        Room[]
 
   @@map("room_type")
 }
 
-enum RoomStatus {
-  AVAILABLE // Ready for check-in
-  OCCUPIED // Currently occupied
-  DIRTY // Needs cleaning
-  CLEANING // Being cleaned
-  MAINTENANCE // Under maintenance
-  OUT_OF_ORDER // Not available
-}
-
 model Room {
-  id        String     @id @default(uuid())
-  number    String // Room number (e.g., "101", "1001")
-  floor     Int
-  status    RoomStatus @default(AVAILABLE)
-  notes     String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  // Relations
-  roomTypeId String
-  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
-
-  // Room history and operations
-  statusHistories    RoomStatusHistory[]
+  id                 String              @id @default(uuid())
+  number             String              @unique
+  floor              Int
+  status             RoomStatus          @default(AVAILABLE)
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  roomTypeId         String
   bookingRooms       BookingRoom[]
+  digitalKeys        DigitalKey[]
   housekeepingTasks  HousekeepingTask[]
   maintenanceTickets MaintenanceTicket[]
+  roomType           RoomType            @relation(fields: [roomTypeId], references: [id])
+  statusHistories    RoomStatusHistory[]
 
-  // Unique constraint: room number
-  @@unique([number])
   @@index([roomTypeId])
   @@index([status])
   @@map("room")
@@ -174,52 +142,43 @@ model RoomStatusHistory {
   status    RoomStatus
   notes     String?
   changedAt DateTime   @default(now())
-  changedBy String? // Staff ID who made the change
-
-  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  changedBy String?
+  room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
   @@index([changedAt])
   @@map("room_status_history")
 }
 
-// ============================================
-// GUEST MANAGEMENT MODELS
-// ============================================
-
 model Guest {
-  id              String    @id @default(uuid())
+  id              String            @id @default(uuid())
   firstName       String
   lastName        String
-  email           String
+  email           String            @unique
   phone           String?
   alternatePhone  String?
   dateOfBirth     DateTime?
   nationality     String?
-  idType          String? // e.g., "Passport", "Driver License"
+  idType          String?
   idNumber        String?
   idExpiry        DateTime?
   passportCountry String?
   address         String?
   city            String?
   country         String?
-  specialRequests String? // Hotel-specific guest requests
-  specialNotes    String? // VIP, problem guests, etc.
-  isVip           Boolean   @default(false)
-  loyaltyPoints   Int       @default(0)
-  marketingOptIn  Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  specialRequests String?
+  specialNotes    String?
+  isVip           Boolean           @default(false)
+  loyaltyPoints   Int               @default(0)
+  marketingOptIn  Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  userId          String?           @unique
+  bookings        Booking[]
+  folios          Folio[]
+  user            User?             @relation(fields: [userId], references: [id])
+  preferences     GuestPreference[]
 
-  // Relations
-  userId String? @unique
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  preferences GuestPreference[]
-  bookings    Booking[]
-  folios      Folio[]
-
-  @@unique([email])
   @@index([userId])
   @@index([lastName])
   @@map("guest")
@@ -228,187 +187,541 @@ model Guest {
 model GuestPreference {
   id              String   @id @default(uuid())
   guestId         String
-  preferenceType  String // e.g., "dietary", "room", "general"
-  preferenceKey   String // e.g., "diet", "floor", "pillow_type"
-  preferenceValue String // e.g., "vegetarian", "high_floor", "firm"
+  preferenceType  String
+  preferenceKey   String
+  preferenceValue String
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
-  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  guest           Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
   @@unique([guestId, preferenceKey])
   @@index([guestId])
   @@map("guest_preference")
 }
 
-// ============================================
-// BOOKING & RESERVATION MODELS
-// ============================================
-
-enum BookingStatus {
-  TENTATIVE // Initial booking, not confirmed
-  CONFIRMED // Confirmed reservation
-  CHECKED_IN // Guest has checked in
-  CHECKED_OUT // Guest has checked out
-  CANCELLED // Booking was cancelled
-  NO_SHOW // Guest didn't arrive
-}
-
-enum BookingSource {
-  DIRECT // Direct booking (hotel website/app)
-  WALK_IN // In-person booking at hotel
-  PHONE // Phone booking
-  OTA // Online Travel Agency (Booking.com, Expedia, etc.)
-  CORPORATE // Corporate account booking
-  GROUP // Group booking
-}
-
 model Booking {
   id               String        @id @default(uuid())
-  confirmationCode String        @unique // e.g., "HMS-2024-001234"
+  confirmationCode String        @unique
   status           BookingStatus @default(TENTATIVE)
   source           BookingSource @default(DIRECT)
-
-  // Guest info (for quick access, denormalized)
-  guestFirstName String
-  guestLastName  String
-  guestEmail     String
-  guestPhone     String?
-
-  // Booking details
-  adults   Int @default(1)
-  children Int @default(0)
-  infants  Int @default(0)
-
-  // Pricing
-  subtotal    Decimal @db.Decimal(10, 2)
-  taxes       Decimal @default(0) @db.Decimal(10, 2)
-  discounts   Decimal @default(0) @db.Decimal(10, 2)
-  totalAmount Decimal @db.Decimal(10, 2)
-
-  // Dates
-  checkInDate    DateTime
-  checkOutDate   DateTime
-  actualCheckIn  DateTime?
-  actualCheckOut DateTime?
-
-  // Notes
-  specialRequests String?
-  internalNotes   String?
-
-  // Group booking support
-  isGroupBooking  Boolean @default(false)
-  groupName       String? // Corporate event, wedding, tour group name
-  masterBookingId String? // Links child bookings to master
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  guestId String
-  guest   Guest  @relation(fields: [guestId], references: [id], onDelete: Restrict)
-
-  bookingRooms  BookingRoom[]
-  checkIn       CheckIn?
-  checkOut      CheckOut?
-  masterBooking Booking?      @relation("GroupBookings", fields: [masterBookingId], references: [id])
-  childBookings Booking[]     @relation("GroupBookings")
+  guestFirstName   String
+  guestLastName    String
+  guestEmail       String
+  guestPhone       String?
+  adults           Int           @default(1)
+  children         Int           @default(0)
+  infants          Int           @default(0)
+  subtotal         Decimal       @db.Decimal(10, 2)
+  taxes            Decimal       @default(0) @db.Decimal(10, 2)
+  discounts        Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount      Decimal       @db.Decimal(10, 2)
+  checkInDate      DateTime
+  checkOutDate     DateTime
+  actualCheckIn    DateTime?
+  actualCheckOut   DateTime?
+  specialRequests  String?
+  internalNotes    String?
+  isGroupBooking   Boolean       @default(false)
+  groupName        String?
+  masterBookingId  String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  guestId          String
+  groupBookingId   String?
+  groupBooking     GroupBooking? @relation("BookingToGroup", fields: [groupBookingId], references: [id])
+  guest            Guest         @relation(fields: [guestId], references: [id])
+  masterBooking    Booking?      @relation("BookingToMaster", fields: [masterBookingId], references: [id])
+  childBookings    Booking[]     @relation("BookingToMaster")
+  bookingRooms     BookingRoom[]
+  checkIn          CheckIn?
+  checkOut         CheckOut?
 
   @@index([guestId])
   @@index([status])
   @@index([checkInDate])
   @@index([checkOutDate])
   @@index([confirmationCode])
+  @@index([masterBookingId])
+  @@index([groupBookingId])
   @@map("booking")
 }
 
 model BookingRoom {
-  id String @id @default(uuid())
-
-  bookingId String
-  roomId    String
-
-  // Pricing for this room
-  rate        Decimal @db.Decimal(10, 2) // Nightly rate
+  id          String   @id @default(uuid())
+  bookingId   String
+  roomId      String
+  rate        Decimal  @db.Decimal(10, 2)
   totalNights Int
-
-  // Status
-  isPrimary Boolean @default(true) // Primary room in booking (for billing)
-  status    String  @default("RESERVED") // RESERVED, CHECKED_IN, CHECKED_OUT
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  room    Room    @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  isPrimary   Boolean  @default(true)
+  status      String   @default("RESERVED")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room        Room     @relation(fields: [roomId], references: [id])
 
   @@index([bookingId])
   @@index([roomId])
   @@map("booking_room")
 }
 
-// ============================================
-// CHECK-IN & CHECK-OUT MODELS
-// ============================================
+model GroupBooking {
+  id                String    @id @default(uuid())
+  groupName         String
+  groupType         GroupType
+  groupCode         String    @unique
+  contactName       String
+  contactEmail      String
+  contactPhone      String?
+  contactCompany    String?
+  roomsBlocked      Int       @default(0)
+  roomsConfirmed    Int       @default(0)
+  discountPercent   Decimal   @default(0) @db.Decimal(5, 2)
+  discountNotes     String?
+  depositRequired   Boolean   @default(false)
+  depositAmount     Decimal?  @db.Decimal(10, 2)
+  depositReceived   Decimal   @default(0) @db.Decimal(10, 2)
+  depositReceivedAt DateTime?
+  depositDueDate    DateTime?
+  bookingCutoffDate DateTime?
+  releaseDate       DateTime?
+  notes             String?
+  internalNotes     String?
+  arrivalInfo       String?
+  departureInfo     String?
+  status            String    @default("ACTIVE")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  bookings          Booking[] @relation("BookingToGroup")
+
+  @@index([groupCode])
+  @@index([groupType])
+  @@index([status])
+  @@map("group_booking")
+}
 
 model CheckIn {
-  id          String   @id @default(uuid())
-  bookingId   String   @unique
-  checkedInAt DateTime @default(now())
-  checkedInBy String // Staff ID
-
-  // Digital key info
-  keyCardNumber String?
-  keyCardIssued Int       @default(1)
-  keyExpiration DateTime?
-
-  // ID verification
-  idVerified       Boolean @default(false)
+  id               String    @id @default(uuid())
+  bookingId        String    @unique
+  checkedInAt      DateTime  @default(now())
+  checkedInBy      String
+  keyCardNumber    String?
+  keyCardIssued    Int       @default(1)
+  keyExpiration    DateTime?
+  idVerified       Boolean   @default(false)
   idDocumentType   String?
   idDocumentNumber String?
-
-  // Acknowledgments
-  policiesAccepted Boolean @default(false)
-  privacyAccepted  Boolean @default(false)
-
-  notes String?
-
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  policiesAccepted Boolean   @default(false)
+  privacyAccepted  Boolean   @default(false)
+  notes            String?
+  booking          Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([checkedInAt])
+  @@index([checkedInBy])
+  @@index([keyCardNumber])
   @@map("check_in")
 }
 
 model CheckOut {
-  id           String   @id @default(uuid())
-  bookingId    String   @unique
-  checkedOutAt DateTime @default(now())
-  checkedOutBy String // Staff ID
-
-  // Checkout details
-  departureTime    String? // HH:mm format
-  roomKeysReturned Boolean @default(false)
-
-  // Final billing
-  folioBalance    Decimal @default(0) @db.Decimal(10, 2)
-  paymentRequired Boolean @default(false)
-
-  // Survey/feedback
-  feedbackRequested Boolean @default(false)
-
-  notes String?
-
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  id                String   @id @default(uuid())
+  bookingId         String   @unique
+  checkedOutAt      DateTime @default(now())
+  checkedOutBy      String
+  departureTime     String?
+  roomKeysReturned  Boolean  @default(false)
+  folioBalance      Decimal  @default(0) @db.Decimal(10, 2)
+  paymentRequired   Boolean  @default(false)
+  feedbackRequested Boolean  @default(false)
+  notes             String?
+  booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([checkedOutAt])
+  @@index([checkedOutBy])
   @@map("check_out")
 }
 
-// ============================================
-// HOUSEKEEPING & MAINTENANCE MODELS
-// ============================================
+model DigitalKey {
+  id             String    @id @default(uuid())
+  keyNumber      String    @unique
+  keyCardNumber  String?
+  roomId         String
+  bookingId      String?
+  accessLevel    String    @default("GUEST")
+  validFrom      DateTime
+  validUntil     DateTime
+  maxAccessCount Int?
+  accessCount    Int       @default(0)
+  lastUsedAt     DateTime?
+  status         KeyStatus @default(ACTIVE)
+  issuedBy       String?
+  issuedAt       DateTime  @default(now())
+  revokedAt      DateTime?
+  revokedBy      String?
+  revokeReason   String?
+  notes          String?
+  room           Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([validUntil])
+  @@map("digital_key")
+}
+
+model HousekeepingTask {
+  id           String       @id @default(uuid())
+  roomId       String
+  taskType     TaskType     @default(CLEANING)
+  priority     TaskPriority @default(NORMAL)
+  status       TaskStatus   @default(PENDING)
+  scheduledFor DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  dueBy        DateTime?
+  assignedTo   String?
+  instructions String?
+  notes        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  staff        Staff?       @relation(fields: [assignedTo], references: [id])
+  room         Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([scheduledFor])
+  @@map("housekeeping_task")
+}
+
+model MaintenanceTicket {
+  id          String         @id @default(uuid())
+  roomId      String
+  category    TicketCategory
+  priority    TicketPriority @default(MEDIUM)
+  status      TicketStatus   @default(OPEN)
+  title       String
+  description String
+  location    String?
+  resolution  String?
+  resolvedAt  DateTime?
+  assignedTo  String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  staff       Staff?         @relation(fields: [assignedTo], references: [id])
+  room        Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedTo])
+  @@map("maintenance_ticket")
+}
+
+model Folio {
+  id            String      @id @default(uuid())
+  folioNumber   String      @unique
+  status        FolioStatus @default(OPEN)
+  guestId       String
+  bookingId     String?
+  subtotal      Decimal     @default(0) @db.Decimal(10, 2)
+  taxes         Decimal     @default(0) @db.Decimal(10, 2)
+  totalPayments Decimal     @default(0) @db.Decimal(10, 2)
+  balance       Decimal     @default(0) @db.Decimal(10, 2)
+  openedAt      DateTime    @default(now())
+  closedAt      DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  charges       Charge[]
+  guest         Guest       @relation(fields: [guestId], references: [id])
+  payments      Payment[]
+
+  @@index([guestId])
+  @@index([status])
+  @@map("folio")
+}
+
+model Charge {
+  id            String         @id @default(uuid())
+  folioId       String
+  category      ChargeCategory
+  description   String
+  amount        Decimal        @db.Decimal(10, 2)
+  quantity      Int            @default(1)
+  unitPrice     Decimal?       @db.Decimal(10, 2)
+  referenceId   String?
+  referenceType String?
+  postedBy      String?
+  postedAt      DateTime       @default(now())
+  nightAuditId  String?
+  createdAt     DateTime       @default(now())
+  folio         Folio          @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([folioId])
+  @@index([category])
+  @@index([postedAt])
+  @@map("charge")
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  folioId           String
+  method            PaymentMethod
+  amount            Decimal       @db.Decimal(10, 2)
+  transactionId     String?
+  authorizationCode String?
+  cardLast4         String?
+  cardBrand         String?
+  reference         String?
+  status            String        @default("COMPLETED")
+  processedBy       String?
+  processedAt       DateTime      @default(now())
+  nightAuditId      String?
+  refundedAmount    Decimal?      @db.Decimal(10, 2)
+  refundedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  folio             Folio         @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([folioId])
+  @@index([method])
+  @@index([processedAt])
+  @@map("payment")
+}
+
+model Staff {
+  id                  String              @id @default(uuid())
+  firstName           String
+  lastName            String
+  email               String              @unique
+  phone               String?
+  role                StaffRole           @default(FRONT_DESK)
+  isActive            Boolean             @default(true)
+  hireDate            DateTime            @default(now())
+  salary              Decimal?            @db.Decimal(10, 2)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  userId              String?             @unique
+  adminRoleId         String?
+  auditActionsTaken   AdminAuditLog[]     @relation("AuditActor")
+  auditActionsAgainst AdminAuditLog[]     @relation("AuditTarget")
+  emailsBanned        BannedEmail[]
+  housekeepingTasks   HousekeepingTask[]
+  maintenanceTickets  MaintenanceTicket[]
+  shifts              Shift[]
+  shiftReports        ShiftReport[]
+  adminRole           Role?               @relation(fields: [adminRoleId], references: [id])
+  user                User?               @relation(fields: [userId], references: [id])
+
+  @@index([role])
+  @@index([isActive])
+  @@index([adminRoleId])
+  @@map("staff")
+}
+
+model Shift {
+  id           String        @id @default(uuid())
+  staffId      String
+  role         StaffRole
+  startTime    DateTime
+  endTime      DateTime?
+  actualStart  DateTime?
+  actualEnd    DateTime?
+  breakStart   DateTime?
+  breakEnd     DateTime?
+  status       String        @default("SCHEDULED")
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  staff        Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  shiftReports ShiftReport[]
+
+  @@index([staffId])
+  @@index([startTime])
+  @@index([status])
+  @@map("shift")
+}
+
+model ShiftReport {
+  id               String   @id @default(uuid())
+  shiftId          String
+  submittedBy      String
+  reportType       String
+  totalCharges     Decimal  @default(0) @db.Decimal(12, 2)
+  totalPayments    Decimal  @default(0) @db.Decimal(12, 2)
+  totalCash        Decimal  @default(0) @db.Decimal(12, 2)
+  totalCards       Decimal  @default(0) @db.Decimal(12, 2)
+  checkIns         Int      @default(0)
+  checkOuts        Int      @default(0)
+  noShows          Int      @default(0)
+  cancellations    Int      @default(0)
+  roomsAvailable   Int      @default(0)
+  roomsOccupied    Int      @default(0)
+  roomsDirty       Int      @default(0)
+  roomsMaintenance Int      @default(0)
+  notes            String?
+  createdAt        DateTime @default(now())
+  shift            Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  staff            Staff    @relation(fields: [submittedBy], references: [id])
+
+  @@index([shiftId])
+  @@index([createdAt])
+  @@map("shift_report")
+}
+
+model EmailLog {
+  id           String      @id @default(uuid())
+  guestId      String?
+  emailType    EmailType
+  recipient    String
+  subject      String
+  body         String?
+  templateId   String?
+  status       EmailStatus @default(PENDING)
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  errorMessage String?
+  metadata     Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([guestId])
+  @@index([emailType])
+  @@index([status])
+  @@index([recipient])
+  @@map("email_log")
+}
+
+model NightAudit {
+  id                 String    @id @default(uuid())
+  auditDate          DateTime  @unique @db.Date
+  startedAt          DateTime
+  completedAt        DateTime?
+  status             String    @default("IN_PROGRESS")
+  totalRoomRevenue   Decimal   @default(0) @db.Decimal(12, 2)
+  totalFbrRevenue    Decimal   @default(0) @db.Decimal(12, 2)
+  totalOtherRevenue  Decimal   @default(0) @db.Decimal(12, 2)
+  totalRevenue       Decimal   @default(0) @db.Decimal(12, 2)
+  totalPayments      Decimal   @default(0) @db.Decimal(12, 2)
+  totalRefunds       Decimal   @default(0) @db.Decimal(12, 2)
+  totalCheckIns      Int       @default(0)
+  totalCheckOuts     Int       @default(0)
+  totalOccupiedRooms Int       @default(0)
+  occupancyRate      Decimal   @default(0) @db.Decimal(5, 2)
+  adr                Decimal   @default(0) @db.Decimal(10, 2)
+  revpar             Decimal   @default(0) @db.Decimal(10, 2)
+  notes              String?
+  preparedBy         String
+  reviewedBy         String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([status])
+  @@map("night_audit")
+}
+
+model AdminAuditLog {
+  id            String      @id @default(cuid())
+  actorStaffId  String?
+  targetStaffId String?
+  targetUserId  String?
+  action        AdminAction
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  actorStaff    Staff?      @relation("AuditActor", fields: [actorStaffId], references: [id])
+  targetStaff   Staff?      @relation("AuditTarget", fields: [targetStaffId], references: [id])
+  targetUser    User?       @relation(fields: [targetUserId], references: [id])
+
+  @@index([actorStaffId])
+  @@index([targetStaffId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@map("admin_audit_log")
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  description     String?
+  resource        String
+  action          String
+  createdAt       DateTime         @default(now())
+  rolePermissions RolePermission[]
+
+  @@index([resource])
+  @@index([action])
+  @@map("permission")
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  description     String?
+  isSuperRole     Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+  staff           Staff[]
+
+  @@map("role")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permission")
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  DIRTY
+  CLEANING
+  MAINTENANCE
+  OUT_OF_ORDER
+}
+
+enum BookingStatus {
+  TENTATIVE
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+enum BookingSource {
+  DIRECT
+  WALK_IN
+  PHONE
+  OTA
+  CORPORATE
+  GROUP
+}
+
+enum GroupType {
+  CORPORATE
+  WEDDING
+  TOUR
+  SPORTS
+  GOVERNMENT
+  OTHER
+}
+
+enum KeyStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  REVOKED
+}
 
 enum TaskPriority {
   LOW
@@ -431,40 +744,6 @@ enum TaskType {
   INSPECTION
   STOCKING
   OTHER
-}
-
-model HousekeepingTask {
-  id       String       @id @default(uuid())
-  roomId   String
-  taskType TaskType     @default(CLEANING)
-  priority TaskPriority @default(NORMAL)
-  status   TaskStatus   @default(PENDING)
-
-  // Scheduling
-  scheduledFor DateTime?
-  startedAt    DateTime?
-  completedAt  DateTime?
-  dueBy        DateTime?
-
-  // Assignment
-  assignedTo String? // Staff ID
-
-  // Details
-  instructions String?
-  notes        String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  room  Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  staff Staff? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
-
-  @@index([roomId])
-  @@index([status])
-  @@index([assignedTo])
-  @@index([scheduledFor])
-  @@map("housekeeping_task")
 }
 
 enum TicketStatus {
@@ -493,77 +772,11 @@ enum TicketCategory {
   OTHER
 }
 
-model MaintenanceTicket {
-  id       String         @id @default(uuid())
-  roomId   String
-  category TicketCategory
-  priority TicketPriority @default(MEDIUM)
-  status   TicketStatus   @default(OPEN)
-
-  title       String // Brief description
-  description String // Detailed issue description
-  location    String? // Specific location within room
-
-  // Resolution
-  resolution String?
-  resolvedAt DateTime?
-
-  // Assignment
-  assignedTo String? // Staff ID
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  room  Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  staff Staff? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
-
-  @@index([roomId])
-  @@index([status])
-  @@index([priority])
-  @@index([assignedTo])
-  @@map("maintenance_ticket")
-}
-
-// ============================================
-// BILLING & POS MODELS
-// ============================================
-
 enum FolioStatus {
   OPEN
   CLOSED
   TRANSFERRED
   CANCELLED
-}
-
-model Folio {
-  id          String      @id @default(uuid())
-  folioNumber String      @unique // e.g., "FOL-2024-000123"
-  status      FolioStatus @default(OPEN)
-
-  guestId   String
-  bookingId String?
-
-  // Totals
-  subtotal      Decimal @default(0) @db.Decimal(10, 2)
-  taxes         Decimal @default(0) @db.Decimal(10, 2)
-  totalPayments Decimal @default(0) @db.Decimal(10, 2)
-  balance       Decimal @default(0) @db.Decimal(10, 2)
-
-  // Timestamps
-  openedAt DateTime  @default(now())
-  closedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  guest    Guest     @relation(fields: [guestId], references: [id], onDelete: Restrict)
-  charges  Charge[]
-  payments Payment[]
-
-  @@index([guestId])
-  @@index([status])
-  @@map("folio")
 }
 
 enum ChargeCategory {
@@ -588,39 +801,6 @@ enum ChargeCategory {
   CANCELLATION_FEE
 }
 
-model Charge {
-  id      String @id @default(uuid())
-  folioId String
-
-  category    ChargeCategory
-  description String
-  amount      Decimal        @db.Decimal(10, 2)
-
-  // Quantity and unit price for itemized charges
-  quantity  Int      @default(1)
-  unitPrice Decimal? @db.Decimal(10, 2)
-
-  // Reference to source (e.g., restaurant order, spa appointment)
-  referenceId   String? // Links to external service order
-  referenceType String? // e.g., "RestaurantOrder", "SpaAppointment"
-
-  // Posting info
-  postedBy String? // Staff ID
-  postedAt DateTime @default(now())
-
-  // Night audit
-  nightAuditId String?
-
-  createdAt DateTime @default(now())
-
-  folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
-
-  @@index([folioId])
-  @@index([category])
-  @@index([postedAt])
-  @@map("charge")
-}
-
 enum PaymentMethod {
   CASH
   CREDIT_CARD
@@ -631,50 +811,6 @@ enum PaymentMethod {
   LOYALTY_POINTS
   COMP
 }
-
-model Payment {
-  id      String @id @default(uuid())
-  folioId String
-
-  method PaymentMethod
-  amount Decimal       @db.Decimal(10, 2)
-
-  // Payment gateway fields (for future integration)
-  transactionId     String? // Gateway transaction ID
-  authorizationCode String? // Auth code from processor
-  cardLast4         String? // Last 4 digits of card
-  cardBrand         String? // Visa, Mastercard, etc.
-
-  // Reference
-  reference String? // Check number, reference number
-
-  // Status
-  status String @default("COMPLETED") // COMPLETED, PENDING, FAILED, REFUNDED
-
-  // Processed by
-  processedBy String? // Staff ID
-  processedAt DateTime @default(now())
-
-  // Night audit
-  nightAuditId String?
-
-  // Refund info
-  refundedAmount Decimal?  @db.Decimal(10, 2)
-  refundedAt     DateTime?
-
-  createdAt DateTime @default(now())
-
-  folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
-
-  @@index([folioId])
-  @@index([method])
-  @@index([processedAt])
-  @@map("payment")
-}
-
-// ============================================
-// STAFF & SHIFT MODELS
-// ============================================
 
 enum StaffRole {
   ADMIN
@@ -687,121 +823,6 @@ enum StaffRole {
   SPA
   ACCOUNTING
 }
-
-model Staff {
-  id        String    @id @default(uuid())
-  firstName String
-  lastName  String
-  email     String
-  phone     String?
-  role      StaffRole @default(FRONT_DESK)
-  isActive  Boolean   @default(true)
-  hireDate  DateTime  @default(now())
-  salary    Decimal?  @db.Decimal(10, 2)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId String? @unique
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  // Admin role relation (optional - if set, overrides StaffRole for admin permissions)
-  adminRoleId String?
-  adminRole   Role?   @relation(fields: [adminRoleId], references: [id], onDelete: SetNull)
-
-  // Relations
-  shifts             Shift[]
-  housekeepingTasks  HousekeepingTask[]
-  maintenanceTickets MaintenanceTicket[]
-  shiftReports       ShiftReport[]
-
-  // Admin audit log
-  auditActionsTaken   AdminAuditLog[] @relation("AuditActor")
-  auditActionsAgainst AdminAuditLog[] @relation("AuditTarget")
-
-  // Emails this admin has banned
-  emailsBanned BannedEmail[]
-
-  @@unique([email])
-  @@index([role])
-  @@index([isActive])
-  @@index([adminRoleId])
-  @@map("staff")
-}
-
-model Shift {
-  id String @id @default(uuid())
-
-  staffId String
-  role    StaffRole // Role during this shift
-
-  startTime   DateTime
-  endTime     DateTime?
-  actualStart DateTime?
-  actualEnd   DateTime?
-
-  // Break
-  breakStart DateTime?
-  breakEnd   DateTime?
-
-  status String @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, ABSENT
-
-  notes String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
-
-  shiftReports ShiftReport[]
-
-  @@index([staffId])
-  @@index([startTime])
-  @@index([status])
-  @@map("shift")
-}
-
-model ShiftReport {
-  id          String @id @default(uuid())
-  shiftId     String
-  submittedBy String // Staff ID
-
-  reportType String // END_OF_DAY, SHIFT_SUMMARY, etc.
-
-  // Financial summary
-  totalCharges  Decimal @default(0) @db.Decimal(12, 2)
-  totalPayments Decimal @default(0) @db.Decimal(12, 2)
-  totalCash     Decimal @default(0) @db.Decimal(12, 2)
-  totalCards    Decimal @default(0) @db.Decimal(12, 2)
-
-  // Operational summary
-  checkIns      Int @default(0)
-  checkOuts     Int @default(0)
-  noShows       Int @default(0)
-  cancellations Int @default(0)
-
-  // Room status at shift end
-  roomsAvailable   Int @default(0)
-  roomsOccupied    Int @default(0)
-  roomsDirty       Int @default(0)
-  roomsMaintenance Int @default(0)
-
-  // Notes
-  notes String?
-
-  createdAt DateTime @default(now())
-
-  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  staff Staff @relation(fields: [submittedBy], references: [id], onDelete: Restrict)
-
-  @@index([shiftId])
-  @@index([createdAt])
-  @@map("shift_report")
-}
-
-// ============================================
-// COMMUNICATION MODELS
-// ============================================
 
 enum EmailType {
   WELCOME
@@ -824,90 +845,6 @@ enum EmailStatus {
   UNSUBSCRIBED
 }
 
-model EmailLog {
-  id      String  @id @default(uuid())
-  guestId String?
-
-  emailType EmailType
-  recipient String // Email address
-  subject   String
-
-  // Content
-  body       String? // HTML content
-  templateId String? // If using email templates
-
-  // Status tracking
-  status      EmailStatus @default(PENDING)
-  sentAt      DateTime?
-  deliveredAt DateTime?
-  openedAt    DateTime?
-  clickedAt   DateTime?
-
-  // Error handling
-  errorMessage String?
-
-  // Metadata
-  metadata Json? // Additional data (campaign ID, etc.)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([guestId])
-  @@index([emailType])
-  @@index([status])
-  @@index([recipient])
-  @@map("email_log")
-}
-
-// ============================================
-// NIGHT AUDIT MODEL (Financial reconciliation)
-// ============================================
-
-model NightAudit {
-  id String @id @default(uuid())
-
-  auditDate   DateTime  @db.Date
-  startedAt   DateTime
-  completedAt DateTime?
-
-  // Status
-  status String @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, REVERSED
-
-  // Financial totals
-  totalRoomRevenue  Decimal @default(0) @db.Decimal(12, 2)
-  totalFbrRevenue   Decimal @default(0) @db.Decimal(12, 2)
-  totalOtherRevenue Decimal @default(0) @db.Decimal(12, 2)
-  totalRevenue      Decimal @default(0) @db.Decimal(12, 2)
-  totalPayments     Decimal @default(0) @db.Decimal(12, 2)
-  totalRefunds      Decimal @default(0) @db.Decimal(12, 2)
-
-  // Statistics
-  totalCheckIns      Int     @default(0)
-  totalCheckOuts     Int     @default(0)
-  totalOccupiedRooms Int     @default(0)
-  occupancyRate      Decimal @default(0) @db.Decimal(5, 2)
-
-  // ADR and RevPAR
-  adr    Decimal @default(0) @db.Decimal(10, 2) // Average Daily Rate
-  revpar Decimal @default(0) @db.Decimal(10, 2) // Revenue Per Available Room
-
-  // Notes
-  notes      String?
-  preparedBy String // Staff ID
-  reviewedBy String? // Manager ID
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([auditDate])
-  @@index([status])
-  @@map("night_audit")
-}
-
-// ============================================
-// ADMIN MANAGEMENT (Audit log)
-// ============================================
-
 enum AdminAction {
   INVITE
   UPDATE
@@ -916,81 +853,4 @@ enum AdminAction {
   RESET_PASSWORD
   DELETE
   REVOKE_SESSIONS
-}
-
-model AdminAuditLog {
-  id String @id @default(cuid())
-
-  actorStaffId String? // Staff ID who performed the action
-  actorStaff   Staff?  @relation("AuditActor", fields: [actorStaffId], references: [id], onDelete: SetNull)
-
-  targetStaffId String? // Staff ID that was affected (nullable for legacy actors)
-  targetStaff   Staff?  @relation("AuditTarget", fields: [targetStaffId], references: [id], onDelete: SetNull)
-
-  targetUserId String? // User ID that was affected
-  targetUser   User?   @relation(fields: [targetUserId], references: [id], onDelete: SetNull)
-
-  action   AdminAction
-  metadata Json? // Changed fields, IP, etc.
-
-  createdAt DateTime @default(now())
-
-  @@index([actorStaffId])
-  @@index([targetStaffId])
-  @@index([targetUserId])
-  @@index([createdAt])
-  @@map("admin_audit_log")
-}
-
-// ============================================
-// ROLES AND PERMISSIONS MODELS
-// ============================================
-
-// Permission model - granular permissions for admin actions
-model Permission {
-  id          String   @id @default(cuid())
-  name        String   @unique // e.g., "admin.create", "staff.read"
-  description String? // Human-readable description
-  resource    String // e.g., "admin", "staff", "report", "room"
-  action      String // e.g., "create", "read", "update", "delete", "deactivate", "reset_password"
-  createdAt   DateTime @default(now())
-
-  // Relations
-  rolePermissions RolePermission[]
-
-  @@index([resource])
-  @@index([action])
-  @@map("permission")
-}
-
-// Role model - groups of permissions
-model Role {
-  id          String   @id @default(cuid())
-  name        String   @unique // e.g., "super_admin", "manager"
-  description String? // Human-readable description
-  isSuperRole Boolean  @default(false) // Super Admin has all permissions automatically
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  rolePermissions RolePermission[]
-  staff           Staff[] // Staff members assigned to this role
-
-  @@map("role")
-}
-
-// Junction table for Role-Permission relationship
-model RolePermission {
-  id           String   @id @default(cuid())
-  roleId       String
-  permissionId String
-  createdAt    DateTime @default(now())
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  @@unique([roleId, permissionId])
-  @@index([roleId])
-  @@index([permissionId])
-  @@map("role_permission")
 }

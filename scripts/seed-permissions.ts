@@ -80,6 +80,12 @@ const INITIAL_PERMISSIONS = [
   { name: "shift.read", description: "View shifts", resource: "shift", action: "read" },
   { name: "shift.update", description: "Update shifts", resource: "shift", action: "update" },
   { name: "shift.delete", description: "Delete shifts", resource: "shift", action: "delete" },
+
+  // Group booking permissions
+  { name: "group_booking.create", description: "Create group bookings", resource: "group_booking", action: "create" },
+  { name: "group_booking.read", description: "View group bookings", resource: "group_booking", action: "read" },
+  { name: "group_booking.update", description: "Update group bookings", resource: "group_booking", action: "update" },
+  { name: "group_booking.delete", description: "Delete group bookings", resource: "group_booking", action: "delete" },
 ];
 
 // Predefined roles with their permissions
@@ -105,6 +111,8 @@ const PREDEFINED_ROLES = [
       "room.create", "room.read", "room.update", "room.delete",
       // Booking management
       "booking.create", "booking.read", "booking.update", "booking.delete",
+      // Group booking management
+      "group_booking.create", "group_booking.read", "group_booking.update", "group_booking.delete",
       // Guest management
       "guest.create", "guest.read", "guest.update", "guest.delete",
       // Reports
@@ -130,6 +138,8 @@ const PREDEFINED_ROLES = [
       "room.read",
       // Booking management
       "booking.create", "booking.read", "booking.update",
+      // Group booking management
+      "group_booking.create", "group_booking.read", "group_booking.update",
       // Guest management
       "guest.create", "guest.read", "guest.update",
       // Housekeeping
@@ -195,15 +205,13 @@ async function seedPermissions() {
     console.log(`\n   Total permissions: ${Object.keys(createdPermissions).length}`);
 
     // Create roles with their permissions
-    console.log("\n2. Creating roles...");
+    console.log("\n2. Creating/updating roles...");
     for (const roleData of PREDEFINED_ROLES) {
       const existingRole = await prisma.role.findUnique({
         where: { name: roleData.name },
       });
 
       if (existingRole) {
-        console.log(`   Role '${roleData.name}' already exists, skipping...`);
-        
         // Update the description if it exists
         if (existingRole.description !== roleData.description) {
           await prisma.role.update({
@@ -211,6 +219,36 @@ async function seedPermissions() {
             data: { description: roleData.description },
           });
         }
+
+        // Sync permissions for existing roles
+        if (!roleData.isSuperRole && roleData.permissionNames.length > 0) {
+          // Get current permissions for this role
+          const currentPerms = await prisma.rolePermission.findMany({
+            where: { roleId: existingRole.id },
+            include: { permission: true },
+          });
+
+          const currentPermNames = currentPerms.map(rp => rp.permission.name);
+          const targetPermNames = roleData.permissionNames;
+
+          // Find permissions to add
+          const permsToAdd = targetPermNames.filter(name => !currentPermNames.includes(name));
+
+          // Add missing permissions
+          for (const permName of permsToAdd) {
+            if (createdPermissions[permName]) {
+              await prisma.rolePermission.create({
+                data: {
+                  roleId: existingRole.id,
+                  permissionId: createdPermissions[permName].id,
+                },
+              });
+              console.log(`   Added permission '${permName}' to role '${roleData.name}'`);
+            }
+          }
+        }
+
+        console.log(`   Role '${roleData.name}' already exists, synced permissions`);
         continue;
       }
 
