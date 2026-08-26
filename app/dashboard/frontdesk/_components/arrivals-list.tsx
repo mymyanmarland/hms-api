@@ -44,6 +44,29 @@ type ArrivalBooking = {
   folioId: string | null;
 };
 
+type DepartureBooking = {
+  id: string;
+  confirmationCode: string;
+  status: "TENTATIVE" | "CONFIRMED" | "CHECKED_IN" | "CHECKED_OUT" | "CANCELLED" | "NO_SHOW";
+  source: "DIRECT" | "WALK_IN" | "PHONE" | "OTA" | "CORPORATE" | "GROUP";
+  guestFirstName: string;
+  guestLastName: string;
+  guestEmail: string;
+  guestPhone: string | null;
+  adults: number;
+  children: number;
+  checkInDate: string;
+  checkOutDate: string;
+  totalAmount: string;
+  specialRequests: string | null;
+  roomId: string | null;
+  roomNumber: string | null;
+  roomTypeName: string | null;
+  actualCheckIn: string | null;
+  folioBalance: string;
+  folioId: string | null;
+};
+
 type ArrivalsListResponse = {
   data: {
     arrivals: ArrivalBooking[];
