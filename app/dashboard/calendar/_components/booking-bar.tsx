@@ -36,25 +36,12 @@ const STATUS_LABEL: Record<CalendarBooking["status"], string> = {
 
 export function BookingBar({
   booking,
-  startColumn,
-  endColumn,
-  rowIndex,
   onSelect,
 }: {
   booking: CalendarBooking;
-  startColumn: number;
-  endColumn: number;
-  rowIndex: number;
   onSelect: (booking: CalendarBooking) => void;
 }) {
   const guestInitials = `${booking.guestFirstName[0] ?? ""}${booking.guestLastName[0] ?? ""}`.toUpperCase();
-
-  const style: React.CSSProperties = {
-    gridColumnStart: startColumn,
-    gridColumnEnd: endColumn,
-    gridRowStart: rowIndex + 1,
-    gridRowEnd: rowIndex + 2,
-  };
 
   const ariaLabel = `Booking ${booking.confirmationCode}, ${booking.guestFirstName} ${booking.guestLastName}, ${booking.checkInDate} to ${booking.checkOutDate}`;
 
@@ -67,11 +54,10 @@ export function BookingBar({
             onClick={() => onSelect(booking)}
             aria-label={ariaLabel}
             className={cn(
-              "m-0.5 flex items-center gap-1.5 overflow-hidden rounded-md px-2 py-1 text-left text-xs font-medium ring-1 transition-colors",
+              "flex h-full min-h-0 w-full items-center gap-1.5 truncate overflow-hidden whitespace-nowrap rounded-md px-2 text-left text-xs font-medium ring-1 transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
               STATUS_STYLES[booking.status],
             )}
-            style={style}
           >
             <span className="flex size-5 shrink-0 items-center justify-center rounded bg-background/60 text-[10px] font-semibold tabular-nums">
               {guestInitials || "?"}

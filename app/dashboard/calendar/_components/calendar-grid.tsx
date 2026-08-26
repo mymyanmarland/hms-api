@@ -31,6 +31,12 @@ const ROOM_STATUS_CLASSES: Record<CalendarRoom["status"], string> = {
 
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+// Visual sizing for the booking track layout. Each track holds one booking
+// bar at a uniform height, so overlapping bookings never visually collide.
+// The day cell's min-height is trackCount * TRACK_HEIGHT + CELL_BASE_HEIGHT.
+const TRACK_HEIGHT = 30; // px — matches BookingBar height (py-1 + text-xs + ring)
+const CELL_BASE_HEIGHT = 4; // px — top/bottom breathing room inside the day cell
+
 export type NewBookingSlot = {
   roomId: string;
   checkInDate: string;
@@ -43,6 +49,72 @@ function isSameSlot(
 ): boolean {
   if (!a) return false;
   return a.roomId === b.roomId && a.checkInDate === b.checkInDate;
+}
+
+type PositionedBooking = CalendarBooking & {
+  startColumn: number;
+  endColumn: number;
+  startDay: number;
+  endDay: number;
+  trackIndex: number;
+};
+
+// Greedy interval-scheduling: sort by start day ascending (then longer
+// durations first), and assign each booking to the first track where it
+// doesn't overlap with the previous booking on that track.
+function assignTracks(
+  bookings: CalendarBooking[],
+  fromIso: string,
+): { positioned: PositionedBooking[]; trackCount: number } {
+  const positioned: PositionedBooking[] = bookings.map((booking) => {
+    const span = computeSpan(booking.checkInDate, booking.checkOutDate, fromIso);
+    return {
+      ...booking,
+      ...span,
+      trackIndex: 0,
+    };
+  });
+
+  positioned.sort((a, b) => {
+    if (a.startDay !== b.startDay) return a.startDay - b.startDay;
+    return b.endDay - a.endDay;
+  });
+
+  // trackOccupancy[k] is the endDay of the last booking placed on track k.
+  // A new booking fits on track k if its startDay >= trackOccupancy[k].
+  const trackOccupancy: number[] = [];
+  for (const booking of positioned) {
+    let trackIndex = trackOccupancy.findIndex(
+      (lastEndDay) => booking.startDay >= lastEndDay,
+    );
+    if (trackIndex === -1) {
+      trackIndex = trackOccupancy.length;
+      trackOccupancy.push(0);
+    }
+    trackOccupancy[trackIndex] = booking.endDay;
+    booking.trackIndex = trackIndex;
+  }
+
+  const trackCount = Math.max(trackOccupancy.length, 1);
+  return { positioned, trackCount };
+}
+
+const EMPTY_LAYOUT: { positioned: PositionedBooking[]; trackCount: number } = {
+  positioned: [],
+  trackCount: 1,
+};
+
+type RoomLayout = ReturnType<typeof assignTracks>;
+
+function buildRoomLayout(
+  bookingsByRoom: Map<string, CalendarBooking[]>,
+  fromIso: string,
+): Map<string, RoomLayout> {
+  const layout = new Map<string, RoomLayout>();
+  for (const [roomId, roomBookings] of bookingsByRoom) {
+    layout.set(roomId, assignTracks(roomBookings, fromIso));
+  }
+  return layout;
 }
 
 export function CalendarGrid({
@@ -62,6 +134,10 @@ export function CalendarGrid({
 }) {
   const days = React.useMemo(() => buildWeek(fromIso), [fromIso]);
   const bookingsByRoom = React.useMemo(() => groupByRoom(bookings), [bookings]);
+  const layoutByRoom = React.useMemo(
+    () => buildRoomLayout(bookingsByRoom, fromIso),
+    [bookingsByRoom, fromIso],
+  );
 
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
@@ -115,8 +191,11 @@ export function CalendarGrid({
           </div>
         ) : null}
 
-        {rooms.map((room, roomIndex) => {
-          const roomBookings = bookingsByRoom.get(room.id) ?? [];
+        {rooms.map((room) => {
+          const layout = layoutByRoom.get(room.id) ?? EMPTY_LAYOUT;
+          const { positioned, trackCount } = layout;
+          const cellMinHeight = trackCount * TRACK_HEIGHT + CELL_BASE_HEIGHT;
+
           return (
             <React.Fragment key={room.id}>
               <div className="sticky left-0 z-10 flex items-center justify-between gap-2 border-b border-r bg-card px-3 py-2">
@@ -143,7 +222,7 @@ export function CalendarGrid({
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-                  minHeight: "64px",
+                  minHeight: `${cellMinHeight}px`,
                 }}
               >
                 {/* Day columns as clickable backgrounds */}
@@ -162,7 +241,7 @@ export function CalendarGrid({
                       aria-label={`Create booking for room ${room.number} on ${day.iso}`}
                       aria-pressed={isSelected}
                       className={cn(
-                        "group/cell relative h-full min-h-[64px] border-r border-border/40 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                        "group/cell relative h-full border-r border-border/40 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                         day.isToday && !isSelected && "bg-primary/5",
                         // Idle hover: clear primary tint + visible "create" cue
                         "hover:bg-primary/10",
@@ -172,10 +251,16 @@ export function CalendarGrid({
                         // Active (mouse pressed) state
                         "active:bg-primary/20",
                       )}
+                      style={{ minHeight: `${cellMinHeight}px` }}
                     >
-                      {/* "Click to create" hint shown on hover (hidden when selected) */}
+                      {/* "Click to create" hint shown on hover (hidden when selected).
+                          Confined to the top track so it never visually collides
+                          with bookings stacked in lower tracks of the same cell. */}
                       {!isSelected ? (
-                        <span className="pointer-events-none absolute inset-0 hidden items-center justify-center text-primary/70 group-hover/cell:flex">
+                        <span
+                          className="pointer-events-none absolute inset-x-0 top-0 hidden items-center justify-center text-primary/70 group-hover/cell:flex"
+                          style={{ height: `${TRACK_HEIGHT}px` }}
+                        >
                           <PlusIcon
                             className="size-5"
                             aria-hidden
@@ -200,31 +285,37 @@ export function CalendarGrid({
                   );
                 })}
 
-                {/* Booking bars overlaid as absolutely positioned grid */}
-                <div className="pointer-events-none absolute inset-0 grid auto-rows-min">
-                  {roomBookings.map((booking) => {
-                    const { startColumn, endColumn } = computeSpan(
-                      booking.checkInDate,
-                      booking.checkOutDate,
-                      fromIso,
-                    );
-                    if (endColumn < 2 || startColumn > 8) return null;
+                {/* Booking bars overlaid in a fixed-height grid. Each track
+                    has a uniform row height so stacked bookings never collide.
+                    Columns are inherited from the parent grid so bars size
+                    to the day cells (not to their own text content, which
+                    would make `whitespace-nowrap` stretch the grid). */}
+                <div
+                  className="pointer-events-none absolute inset-0 grid"
+                  style={{
+                    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                    gridTemplateRows: `repeat(${trackCount}, ${TRACK_HEIGHT}px)`,
+                  }}
+                >
+                  {positioned.map((booking) => {
+                    if (booking.endColumn < 2 || booking.startColumn > 8) {
+                      return null;
+                    }
+                    const startColumn = Math.max(booking.startColumn, 2);
+                    const endColumn = Math.min(booking.endColumn, 9);
                     return (
                       <div
                         key={booking.id}
                         className="pointer-events-auto"
                         style={{
-                          gridColumnStart: Math.max(startColumn, 2),
-                          gridColumnEnd: Math.min(endColumn, 9),
-                          gridRowStart: 1,
-                          gridRowEnd: 2,
+                          gridColumnStart: startColumn,
+                          gridColumnEnd: endColumn,
+                          gridRowStart: booking.trackIndex + 1,
+                          gridRowEnd: booking.trackIndex + 2,
                         }}
                       >
                         <BookingBar
                           booking={booking}
-                          startColumn={Math.max(startColumn, 2)}
-                          endColumn={Math.min(endColumn, 9)}
-                          rowIndex={roomIndex}
                           onSelect={onSelectBooking}
                         />
                       </div>
@@ -276,24 +367,24 @@ function computeSpan(
   checkInIso: string,
   checkOutIso: string,
   fromIso: string,
-): { startColumn: number; endColumn: number } {
+): { startColumn: number; endColumn: number; startDay: number; endDay: number } {
   const checkIn = parseIso(checkInIso);
   const checkOut = parseIso(checkOutIso);
   const from = parseIso(fromIso);
 
-  const daysFromStart = Math.max(
+  const startDay = Math.max(
     Math.floor((checkIn.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)),
     0,
   );
-  const daysUntilOut = Math.max(
+  const endDay = Math.max(
     Math.ceil((checkOut.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)),
-    0,
+    startDay + 1,
   );
 
-  const startColumn = Math.min(Math.max(daysFromStart + 2, 2), 8);
-  const endColumn = Math.min(Math.max(daysUntilOut + 2, 3), 9);
+  const startColumn = Math.min(Math.max(startDay + 2, 2), 8);
+  const endColumn = Math.min(Math.max(endDay + 2, 3), 9);
 
-  return { startColumn, endColumn };
+  return { startColumn, endColumn, startDay, endDay };
 }
 
 function parseIso(value: string): Date {
