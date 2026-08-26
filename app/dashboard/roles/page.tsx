@@ -1,26 +1,20 @@
-import * as React from "react";
-import { ShieldCheckIcon, KeyIcon } from "lucide-react";
-import { requireAdminOrThrow } from "@/lib/admin-auth";
+import { redirect } from "next/navigation";
+import { ShieldCheckIcon } from "lucide-react";
+
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { getSidebarUserData, requireAdmin } from "@/lib/admin-auth";
 import { hasPermission } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
-import { BackButton } from "@/components/back-button";
 import { RolesList } from "./_components/roles-list";
 import { PermissionsList } from "./_components/permissions-list";
 
 export default async function RolesPage() {
-  // Server-side auth check
-  let actor;
-  try {
-    actor = await requireAdminOrThrow();
-  } catch {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-          <p className="text-muted-foreground">You need admin access to view this page.</p>
-        </div>
-      </div>
-    );
+  const actor = await requireAdmin();
+  const userData = await getSidebarUserData();
+  if (!actor || !userData) {
+    redirect("/login");
   }
 
   // Server-side permission checks
@@ -75,32 +69,50 @@ export default async function RolesPage() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="px-4 lg:px-6">
-        <div className="flex flex-col gap-3 pt-2">
-          <BackButton href="/dashboard" label="Back to Dashboard" />
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <ShieldCheckIcon className="size-6" />
-              Roles & Permissions
-            </h1>
-            <p className="text-muted-foreground">
-              Manage roles and their associated permissions for admin access control.
-            </p>
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar variant="inset" userData={userData} />
+      <SidebarInset>
+        <SiteHeader pageTitle="Roles & Permissions" />
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+              <div className="flex flex-col gap-6">
+                <div className="px-4 lg:px-6">
+                  <div className="flex flex-col gap-3 pt-2">
+                    <div className="flex flex-col gap-1">
+                      <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <ShieldCheckIcon className="size-6" />
+                        Roles & Permissions
+                      </h1>
+                      <p className="text-muted-foreground">
+                        Manage roles and their associated permissions for admin access control.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <RolesList
+                  initialRoles={transformedRoles}
+                  allPermissions={permissions}
+                  canManageRoles={canReadRoles}
+                />
+
+                <PermissionsList
+                  permissionsByResource={permissionsByResource}
+                  canManagePermissions={canReadPermissions}
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-
-      <RolesList
-        initialRoles={transformedRoles}
-        allPermissions={permissions}
-        canManageRoles={canReadRoles}
-      />
-
-      <PermissionsList
-        permissionsByResource={permissionsByResource}
-        canManagePermissions={canReadPermissions}
-      />
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
