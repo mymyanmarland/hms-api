@@ -18,17 +18,16 @@ export const performCheckInSchema = z.object({
   roomId: z.string().min(1, "Room assignment is required"),
 
   // Digital key
-  generateDigitalKey: z.boolean().default(true),
-  keyAccessLevel: z.enum(["GUEST", "STAFF", "EMERGENCY"]).default("GUEST"),
+  generateDigitalKey: z.boolean(),
+  keyAccessLevel: z.enum(["GUEST", "STAFF", "EMERGENCY"]),
   keyValidHours: z
     .number()
     .int("Hours must be an integer")
     .min(1, "Key must be valid for at least 1 hour")
-    .max(168, "Key cannot exceed 168 hours (1 week)")
-    .default(72),
+    .max(168, "Key cannot exceed 168 hours (1 week)"),
 
   // ID verification
-  idVerified: z.boolean().default(false),
+  idVerified: z.boolean(),
   idDocumentType: z
     .string()
     .trim()
@@ -41,8 +40,8 @@ export const performCheckInSchema = z.object({
     .optional(),
 
   // Acknowledgments
-  policiesAccepted: z.boolean().default(false),
-  privacyAccepted: z.boolean().default(false),
+  policiesAccepted: z.boolean(),
+  privacyAccepted: z.boolean(),
 
   // Additional info
   notes: z

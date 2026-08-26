@@ -40,6 +40,8 @@ type ArrivalBooking = {
   roomNumber: string | null;
   roomTypeName: string | null;
   actualCheckIn: string | null;
+  folioBalance: string;
+  folioId: string | null;
 };
 
 type ArrivalsListResponse = {
@@ -80,7 +82,7 @@ const STATUS_LABEL: Record<ArrivalBooking["status"], string> = {
 
 export function ArrivalsList({ date }: { date: string }) {
   const [checkInBooking, setCheckInBooking] = React.useState<ArrivalBooking | null>(null);
-  const [checkOutBooking, setCheckOutBooking] = React.useState<ArrivalBooking | null>(null);
+  const [checkOutBooking, setCheckOutBooking] = React.useState<DepartureBooking | null>(null);
 
   const { data, error, isLoading, mutate, isValidating } = useSWR<ArrivalsListResponse>(
     `/api/checkin?date=${date}&intent=list`,

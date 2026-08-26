@@ -636,7 +636,7 @@ export async function addToGroupAction(
           groupName: groupBooking.groupName,
           groupBookingId: groupBooking.id,
           ...(parsed.data.overrideDiscount &&
-            groupBooking.discountPercent > 0 && {
+            groupBooking.discountPercent.toNumber() > 0 && {
               // Recalculate with discount
               discounts: booking.subtotal.mul(groupBooking.discountPercent).div(100),
             }),
@@ -731,7 +731,7 @@ export async function removeFromGroupAction(
       });
 
       await tx.groupBooking.update({
-        where: { id: booking.groupBookingId },
+        where: { id: booking.groupBookingId ?? "" },
         data: {
           roomsConfirmed: { decrement: 1 },
         },

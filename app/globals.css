@@ -125,6 +125,9 @@
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, monospace;
+    --font-heading: var(--font-sans);
+    font-family: var(--font-sans);
   }
 }

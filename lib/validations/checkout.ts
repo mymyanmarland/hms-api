@@ -21,7 +21,7 @@ export const processCheckOutSchema = z.object({
     .optional(),
 
   // Key return
-  roomKeysReturned: z.boolean().default(true),
+  roomKeysReturned: z.boolean(),
 
   // Payment if needed
   paymentMethod: z
@@ -42,15 +42,14 @@ export const processCheckOutSchema = z.object({
     .optional(),
 
   // Feedback
-  feedbackRequested: z.boolean().default(true),
+  feedbackRequested: z.boolean(),
 
   // Early/late checkout charges
-  earlyCheckout: z.boolean().default(false),
-  lateCheckout: z.boolean().default(false),
+  earlyCheckout: z.boolean(),
+  lateCheckout: z.boolean(),
   checkoutCharges: z
     .number()
-    .nonnegative("Checkout charges cannot be negative")
-    .default(0),
+    .nonnegative("Checkout charges cannot be negative"),
 
   // Additional info
   notes: z

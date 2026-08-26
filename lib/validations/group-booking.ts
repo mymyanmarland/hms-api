@@ -51,8 +51,7 @@ export const createGroupBookingSchema = z.object({
   discountPercent: z
     .number()
     .min(0, "Discount cannot be negative")
-    .max(100, "Discount cannot exceed 100%")
-    .default(0),
+    .max(100, "Discount cannot exceed 100%"),
   discountNotes: z
     .string()
     .trim()
@@ -60,7 +59,7 @@ export const createGroupBookingSchema = z.object({
     .optional(),
 
   // Deposit settings
-  depositRequired: z.boolean().default(false),
+  depositRequired: z.boolean(),
   depositAmount: z
     .number()
     .nonnegative("Deposit amount cannot be negative")

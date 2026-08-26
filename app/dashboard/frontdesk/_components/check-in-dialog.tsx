@@ -239,7 +239,7 @@ function CheckInFormBody({
         onOpenChange(false);
         onSuccess?.();
       } else if (result.fieldErrors) {
-        for (const [key, messages] of Object.entries(result.fieldErrors)) {
+        for (const [key, messages] of Object.entries(result.fieldErrors as Record<string, string[]>)) {
           if (messages?.[0]) {
             form.setError(key as keyof PerformCheckInInput, {
               message: messages[0],
