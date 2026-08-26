@@ -6,7 +6,6 @@ import { Slot } from "@radix-ui/react-slot";
 import {
   Controller,
   ControllerProps,
-  ControllerRenderProps,
   FieldPath,
   FieldValues,
   FormProvider,
@@ -90,11 +89,14 @@ const FormLabel = React.forwardRef<
 FormLabel.displayName = "FormLabel";
 
 const FormControl = React.forwardRef<
-  HTMLDivElement,
-  ControllerRenderProps
+  React.ElementRef<typeof Slot>,
+  React.ComponentPropsWithoutRef<typeof Slot>
 >(({ ...props }, ref) => {
   return (
-    <div ref={ref} {...props} />
+    <Slot
+      ref={ref}
+      {...props}
+    />
   );
 });
 FormControl.displayName = "FormControl";
