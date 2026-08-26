@@ -9,12 +9,13 @@ import {
 import { AdminsView } from "./_components/admins-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminActivityLog } from "./_components/admin-activity-log";
-import { requireAdmin } from "@/lib/admin-auth";
+import { getSidebarUserData, requireAdmin } from "@/lib/admin-auth";
 
 export default async function AdminsPage() {
   const actor = await requireAdmin();
+  const userData = await getSidebarUserData();
 
-  if (!actor) {
+  if (!actor || !userData) {
     redirect("/login");
   }
 
@@ -27,7 +28,7 @@ export default async function AdminsPage() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="inset" userData={userData} />
       <SidebarInset>
         <SiteHeader pageTitle="Admin Management" />
         <div className="flex flex-1 flex-col">

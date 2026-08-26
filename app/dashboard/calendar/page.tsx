@@ -6,11 +6,12 @@ import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarView } from "./_components/calendar-view";
-import { requireAdmin } from "@/lib/admin-auth";
+import { getSidebarUserData, requireAdmin } from "@/lib/admin-auth";
 
 export default async function CalendarPage() {
   const actor = await requireAdmin();
-  if (!actor) {
+  const userData = await getSidebarUserData();
+  if (!actor || !userData) {
     redirect("/login");
   }
 
@@ -23,7 +24,7 @@ export default async function CalendarPage() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="inset" userData={userData} />
       <SidebarInset>
         <SiteHeader pageTitle="Booking Calendar" />
         <div className="flex flex-1 flex-col">

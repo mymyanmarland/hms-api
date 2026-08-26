@@ -22,6 +22,7 @@ import {
   CalendarRangeIcon,
   UsersIcon,
   ClipboardListIcon,
+  SparklesIcon,
 } from "lucide-react"
 
 const data = {
@@ -40,6 +41,11 @@ const data = {
       title: "Booking Calendar",
       url: "/dashboard/calendar",
       icon: <CalendarRangeIcon />,
+    },
+    {
+      title: "Housekeeping",
+      url: "/dashboard/housekeeping",
+      icon: <SparklesIcon />,
     },
     {
       title: "Group Bookings",

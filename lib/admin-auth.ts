@@ -7,6 +7,12 @@ export type AdminActor = {
   staff: Staff;
 };
 
+export type SidebarUserData = {
+  name: string;
+  email: string;
+  avatar: string;
+};
+
 /**
  * Resolves the active session from the cookie store and returns the
  * associated admin actor (User + Staff) if (and only if) the linked staff
@@ -65,4 +71,46 @@ export async function requireAdminOrThrow(): Promise<AdminActor> {
     throw new AdminForbiddenError();
   }
   return actor;
+}
+
+/**
+ * Resolve the current session and return a minimal payload suitable for
+ * passing into <AppSidebar /> so the footer user chip renders the right
+ * initials/name/email/avatar. Returns `null` if the session is missing or
+ * expired so the caller can redirect (rather than silently showing a
+ * "Loading..." placeholder).
+ */
+export async function getSidebarUserData(): Promise<SidebarUserData | null> {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("session")?.value;
+
+  if (!sessionToken) {
+    return null;
+  }
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: {
+      user: {
+        include: {
+          staff: true,
+        },
+      },
+    },
+  });
+
+  if (!session || session.expiresAt < new Date()) {
+    return null;
+  }
+
+  const user = session.user;
+  const userName = user.staff
+    ? `${user.staff.firstName} ${user.staff.lastName}`.trim()
+    : user.name;
+
+  return {
+    name: userName || user.email,
+    email: user.email,
+    avatar: user.image || "",
+  };
 }
