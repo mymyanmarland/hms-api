@@ -131,3 +131,207 @@
     font-family: var(--font-sans);
   }
 }
+
+/* ===== Login screen animations ===== */
+@theme inline {
+  --animate-gradient-shift: gradient-shift 16s ease infinite;
+  --animate-float-slow: float-slow 12s ease-in-out infinite;
+  --animate-float-medium: float-medium 8s ease-in-out infinite;
+  --animate-float-fast: float-fast 6s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-card-rise: card-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-icon-pop: icon-pop 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-spin-slow: spin 8s linear infinite;
+  --animate-tilt: tilt 12s ease-in-out infinite;
+  --animate-step-in: step-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -40px) scale(1.05);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+@keyframes float-medium {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-25px, -30px) scale(1.08);
+  }
+}
+
+@keyframes float-fast {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(20px, -25px) scale(0.92);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 oklch(0.6 0.18 264 / 0.45),
+      0 0 32px 4px oklch(0.6 0.18 264 / 0.25);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 12px oklch(0.6 0.18 264 / 0),
+      0 0 48px 12px oklch(0.6 0.18 264 / 0.4);
+    transform: scale(1.04);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes card-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes icon-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-20deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.1) rotate(8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes tilt {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(0.6deg);
+  }
+  75% {
+    transform: rotate(-0.6deg);
+  }
+}
+
+@keyframes shake-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes step-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@layer utilities {
+  .animate-gradient-shift {
+    animation: var(--animate-gradient-shift);
+  }
+  .animate-float-slow {
+    animation: var(--animate-float-slow);
+  }
+  .animate-float-medium {
+    animation: var(--animate-float-medium);
+  }
+  .animate-float-fast {
+    animation: var(--animate-float-fast);
+  }
+  .animate-glow-pulse {
+    animation: var(--animate-glow-pulse);
+  }
+  .animate-shimmer {
+    animation: var(--animate-shimmer);
+  }
+  .animate-card-rise {
+    animation: var(--animate-card-rise);
+  }
+  .animate-fade-up {
+    animation: var(--animate-fade-up);
+  }
+  .animate-icon-pop {
+    animation: var(--animate-icon-pop);
+  }
+  .animate-spin-slow {
+    animation: var(--animate-spin-slow);
+  }
+  .animate-tilt {
+    animation: var(--animate-tilt);
+  }
+  .animate-shake-x {
+    animation: shake-x 0.4s ease-in-out;
+  }
+  .animate-step-in {
+    animation: var(--animate-step-in);
+  }
+}
