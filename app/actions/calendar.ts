@@ -392,34 +392,12 @@ export async function createBookingFromCalendarAction(
       return { success: false, fieldErrors: { roomId: ["Selected room no longer exists."] } };
     }
 
-    const conflictingBooking = await prisma.bookingRoom.findFirst({
-      where: {
-        roomId: room.id,
-        booking: {
-          status: { notIn: ["CANCELLED", "NO_SHOW"] },
-          checkInDate: { lt: checkOutDate },
-          checkOutDate: { gt: checkInDate },
-        },
-      },
-      select: {
-        booking: {
-          select: {
-            id: true,
-            confirmationCode: true,
-            checkInDate: true,
-            checkOutDate: true,
-          },
-        },
-      },
-    });
-
-    if (conflictingBooking) {
-      return {
-        success: false,
-        error: `Room is already booked for that range (${conflictingBooking.booking.confirmationCode}).`,
-      };
-    }
-
+    // 3. Transaction: re-check for conflicts inside the transaction
+    //    while holding a consistent read snapshot, then create the
+    //    booking + booking_room row. Re-checking inside the transaction
+    //    closes the TOCTOU race condition where two concurrent calendar
+    //    bookings for the same room/dates could both pass the
+    //    pre-transaction conflict check and both insert.
     const nights = Math.max(
       Math.round(
         (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24),
@@ -430,71 +408,140 @@ export async function createBookingFromCalendarAction(
     const subtotal = nightlyRate.mul(nights);
     const totalAmount = subtotal;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const existingGuest = await tx.guest.findUnique({
-        where: { email: normalizedEmail },
-        select: { id: true },
-      });
-
-      const guest =
-        existingGuest ??
-        (await tx.guest.create({
-          data: {
-            firstName: data.guestFirstName,
-            lastName: data.guestLastName,
-            email: normalizedEmail,
-            phone: data.guestPhone,
-          },
-          select: { id: true },
-        }));
-
-      let confirmationCode = generateConfirmationCode();
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        const exists = await tx.booking.findUnique({
-          where: { confirmationCode },
+    let confirmationCode = generateConfirmationCode();
+    type TxResult = { id: string; confirmationCode: string };
+    let txResult: TxResult;
+    try {
+      txResult = await prisma.$transaction(async (tx) => {
+        // Acquire the room record to establish a consistent read snapshot
+        const lockedRoom = await tx.room.findUnique({
+          where: { id: room.id },
           select: { id: true },
         });
-        if (!exists) break;
-        confirmationCode = generateConfirmationCode();
+
+        if (!lockedRoom) {
+          throw new Error("Room no longer exists");
+        }
+
+        // Re-check for conflicts inside the transaction. This closes the
+        // TOCTOU window where two concurrent requests could both pass
+        // the pre-transaction check and both create bookings for the
+        // same room/dates.
+        const conflict = await tx.bookingRoom.findFirst({
+          where: {
+            roomId: room.id,
+            booking: {
+              status: { notIn: ["CANCELLED", "NO_SHOW"] },
+              checkInDate: { lt: checkOutDate },
+              checkOutDate: { gt: checkInDate },
+            },
+          },
+          select: {
+            bookingId: true,
+            booking: { select: { confirmationCode: true } },
+          },
+        });
+
+        if (conflict) {
+          throw new Error(
+            `Room was booked by another guest (${conflict.booking.confirmationCode})`,
+          );
+        }
+
+        const existingGuest = await tx.guest.findUnique({
+          where: { email: normalizedEmail },
+          select: { id: true },
+        });
+
+        const guest =
+          existingGuest ??
+          (await tx.guest.create({
+            data: {
+              firstName: data.guestFirstName,
+              lastName: data.guestLastName,
+              email: normalizedEmail,
+              phone: data.guestPhone,
+            },
+            select: { id: true },
+          }));
+
+        // Retry the confirmation code a few times in case of an
+        // unlikely collision on the unique index.
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          const existing = await tx.booking.findUnique({
+            where: { confirmationCode },
+            select: { id: true },
+          });
+          if (!existing) break;
+          confirmationCode = generateConfirmationCode();
+        }
+
+        const booking = await tx.booking.create({
+          data: {
+            confirmationCode,
+            status: "CONFIRMED",
+            source: data.source,
+            guestId: guest.id,
+            guestFirstName: data.guestFirstName,
+            guestLastName: data.guestLastName,
+            guestEmail: normalizedEmail,
+            guestPhone: data.guestPhone,
+            adults: data.adults,
+            children: data.children,
+            infants: 0,
+            subtotal,
+            taxes: 0,
+            discounts: 0,
+            totalAmount,
+            checkInDate,
+            checkOutDate,
+            specialRequests: data.notes,
+          },
+          select: { id: true, confirmationCode: true },
+        });
+
+        await tx.bookingRoom.create({
+          data: {
+            bookingId: booking.id,
+            roomId: room.id,
+            rate: nightlyRate,
+            totalNights: nights,
+            isPrimary: true,
+            status: "RESERVED",
+          },
+        });
+
+        return { id: booking.id, confirmationCode: booking.confirmationCode };
+      }, {
+        // Use serializable isolation for stronger guarantees in high-contention scenarios
+        isolationLevel: 'Serializable',
+      });
+    } catch (txError) {
+      // Surface specific error types for better user feedback
+      if (txError instanceof Error) {
+        if (txError.message.includes("was booked by another guest")) {
+          return {
+            success: false,
+            error: txError.message,
+          };
+        }
+        if (txError.message.includes("no longer exists")) {
+          return {
+            success: false,
+            error: "Room no longer exists. Please try again.",
+          };
+        }
       }
-
-      const booking = await tx.booking.create({
-        data: {
-          confirmationCode,
-          status: "CONFIRMED",
-          source: data.source,
-          guestId: guest.id,
-          guestFirstName: data.guestFirstName,
-          guestLastName: data.guestLastName,
-          guestEmail: normalizedEmail,
-          guestPhone: data.guestPhone,
-          adults: data.adults,
-          children: data.children,
-          infants: 0,
-          subtotal,
-          taxes: 0,
-          discounts: 0,
-          totalAmount,
-          checkInDate,
-          checkOutDate,
-          specialRequests: data.notes,
-        },
-        select: { id: true, confirmationCode: true },
-      });
-
-      await tx.bookingRoom.create({
-        data: {
-          bookingId: booking.id,
-          roomId: room.id,
-          rate: nightlyRate,
-          totalNights: nights,
-          isPrimary: true,
-          status: "RESERVED",
-        },
-      });
-
-      return booking;
-    });
+      // A unique-confirmation-code collision on the 6th retry means the
+      // generation space is exhausted; surface a friendly error rather
+      // than leaking the database error.
+      console.error("[calendar] transaction failed:", txError);
+      return {
+        success: false,
+        error:
+          "We could not finalize that confirmation number. Please try again.",
+      };
+    }
 
     revalidatePath("/dashboard/calendar");
     revalidateTag("calendar", "max");
@@ -503,8 +550,8 @@ export async function createBookingFromCalendarAction(
     return {
       success: true,
       data: {
-        bookingId: result.id,
-        confirmationCode: result.confirmationCode,
+        bookingId: txResult.id,
+        confirmationCode: txResult.confirmationCode,
       },
     };
   } catch (error) {
