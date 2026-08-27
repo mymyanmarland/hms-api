@@ -73,4 +73,49 @@ When asked to create a feature (e.g., "Create a checkout form"):
 3. Third, build the UI using Server Components and Suspense for PPR.
 4. Finally, build the interactive Client Component form using `react-hook-form`, `shadcn/ui`, and the Server Action.
 
+# 7. Unit Testing
+
+## Framework & Tools
+- **Runner:** Vitest (`^2.1.9`)
+- **Environment:** `jsdom` for browser/DOM component tests
+- **Assertions:** Vitest built-ins + `@testing-library/jest-dom` for extended matchers
+- **React testing:** `@testing-library/react` (Next.js components) or `@testing-library/react-native` (Expo components)
+
+## Running Tests
+```bash
+npm test          # vitest run — single pass
+npm run test:watch # vitest — watch mode
+npm run test:coverage # vitest run --coverage
+```
+
+## Test File Conventions
+- Location: co-locate with the file under test (`ComponentName.test.tsx`)
+- Naming: `*.test.{ts,tsx}` — never `.spec.*`
+- Imports: `import { describe, it, expect, vi } from "vitest"` (globals enabled)
+
+## Mocking Patterns
+- **Prisma:** Use `test/helpers/prisma-mock.ts` — do not import the real client
+- **Next.js modules:** Mock in `vitest.setup.ts` (cookies, cache, navigation)
+- **fetch:** jsdom provides a real `fetch` — override per-test with `Object.defineProperty(globalThis, "fetch", { value: mockFn, configurable: true })`
+- **Server Actions:** `vi.mock("@/app/actions/your-action")` and `vi.mocked(createDirectBookingAction).mockResolvedValueOnce(...)`
+- **React hooks/contexts:** `vi.mock("@/path/to/context")` with factory returning required exports
+
+## Component Testing
+- Use `@testing-library/react` with `render(<Component />)` and `screen.*` queries
+- Prefer `getByRole`, `getByText`, `getByLabelText` over `getByTestId`
+- For React Native `Pressable` (no native press handlers in jsdom): add `testID` prop and query by `getByTestId`
+- For inputs: use `getByRole("textbox")` or `getByLabelText("Label Text")` for accessible queries
+- For async state: use `await waitFor(() => { expect(...) })`
+- Use `userEvent.setup()` for user interactions (not bare `fireEvent`)
+
+## What to Test
+- Zod schemas: valid/invalid combos, edge cases (min/max, format, cross-field refine)
+- Pure utility functions: all branches, error paths
+- Reducers: every action + state transition
+- React components: render, user interaction, validation errors, server state responses
+
+## What NOT to Test
+- Framework/platform internals (Next.js routing, Expo constants)
+- Third-party library implementation details (Prisma query builder, react-hook-form internals)
+
 <!-- END:app-guideline-rules -->
