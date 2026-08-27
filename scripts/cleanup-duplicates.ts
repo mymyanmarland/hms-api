@@ -1,7 +1,7 @@
 import "dotenv/config";
 import dotenv from "dotenv";
 dotenv.config({ override: true, path: "./.env" });
-import { PrismaClient } from "../app/generated/prisma/client.ts";
+import { PrismaClient } from "../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const adapter = new PrismaPg({
