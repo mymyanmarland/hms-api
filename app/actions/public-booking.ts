@@ -5,7 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { render } from "@react-email/render";
 
 import prisma from "@/lib/prisma";
-import { findAvailableRoomForType } from "@/lib/booking-conflict";
+import { findBookingConflict, findAvailableRoomForType } from "@/lib/booking-conflict";
 import { generateConfirmationCode, formatBookingAmount } from "@/lib/booking";
 import { normalizeToUtcStart, nightsBetween } from "@/lib/dates";
 import { getMailTransport } from "@/lib/mail";
