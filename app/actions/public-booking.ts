@@ -462,7 +462,7 @@ export async function createDirectBookingAction(
         return { bookingId: booking.id, guestId: guest.id };
       }, {
         // Use serializable isolation for stronger guarantees in high-contention scenarios
-        isolationLevel: prisma.$transaction['transactionType'] extends 'batch' ? undefined : 'Serializable',
+        isolationLevel: 'Serializable',
       });
     } catch (txError) {
       // Surface specific error types for better user feedback
