@@ -5,7 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { render } from "@react-email/render";
 
 import prisma from "@/lib/prisma";
-import { findBookingConflict, findAvailableRoomForType } from "@/lib/booking-conflict";
+import { findAvailableRoomForType } from "@/lib/booking-conflict";
 import { generateConfirmationCode, formatBookingAmount } from "@/lib/booking";
 import { normalizeToUtcStart, nightsBetween } from "@/lib/dates";
 import { getMailTransport } from "@/lib/mail";
@@ -338,18 +338,8 @@ export async function createDirectBookingAction(
       };
     }
 
-    // 2. Final conflict check — protects against a race condition where
-    //    the room became unavailable between the search and the submit.
-    const conflict = await findBookingConflict(room.id, checkInDate, checkOutDate);
-    if (conflict) {
-      return {
-        success: false,
-        error: `Room ${room.number} was booked by another guest (${conflict.confirmationCode}). Please pick a different room.`,
-      };
-    }
-
     // 3. Transaction: create or reuse guest + create booking + create
-    //    booking_room row.
+    //    booking_room row with pessimistic locking to prevent race conditions.
     const nights = nightsBetween(data.checkIn, data.checkOut);
     const subtotalNumber = room.basePrice * nights;
     const subtotal = subtotalNumber.toFixed(2);
@@ -361,6 +351,40 @@ export async function createDirectBookingAction(
     let txResult: TxResult;
     try {
       txResult = await prisma.$transaction(async (tx) => {
+        // Acquire the room record to establish a consistent read snapshot
+        const lockedRoom = await tx.room.findUnique({
+          where: { id: room.id },
+          select: { id: true },
+        });
+
+        if (!lockedRoom) {
+          throw new Error("Room no longer exists");
+        }
+
+        // Re-check for conflicts inside the transaction while holding the lock.
+        // This closes the TOCTOU race condition window where two concurrent
+        // requests could both pass the pre-transaction conflict check.
+        const conflict = await tx.bookingRoom.findFirst({
+          where: {
+            roomId: room.id,
+            booking: {
+              status: { notIn: ["CANCELLED", "NO_SHOW"] },
+              checkInDate: { lt: checkOutDate },
+              checkOutDate: { gt: checkInDate },
+            },
+          },
+          select: {
+            bookingId: true,
+            booking: { select: { confirmationCode: true } },
+          },
+        });
+
+        if (conflict) {
+          throw new Error(
+            `Room ${room.number} was booked by another guest (${conflict.booking.confirmationCode})`,
+          );
+        }
+
         const existingGuest = await tx.guest.findUnique({
           where: { email: normalizedEmail },
           select: { id: true, userId: true },
@@ -436,8 +460,26 @@ export async function createDirectBookingAction(
         });
 
         return { bookingId: booking.id, guestId: guest.id };
+      }, {
+        // Use serializable isolation for stronger guarantees in high-contention scenarios
+        isolationLevel: prisma.$transaction['transactionType'] extends 'batch' ? undefined : 'Serializable',
       });
     } catch (txError) {
+      // Surface specific error types for better user feedback
+      if (txError instanceof Error) {
+        if (txError.message.includes("was booked by another guest")) {
+          return {
+            success: false,
+            error: txError.message,
+          };
+        }
+        if (txError.message.includes("no longer exists")) {
+          return {
+            success: false,
+            error: "Room no longer exists. Please try again.",
+          };
+        }
+      }
       // A unique-confirmation-code collision on the 6th retry means the
       // generation space is exhausted; surface a friendly error rather
       // than leaking the database error.

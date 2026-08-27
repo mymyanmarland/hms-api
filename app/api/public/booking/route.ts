@@ -177,18 +177,6 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Final conflict check
-    const conflict = await findBookingConflict(room.id, checkInDate, checkOutDate);
-    if (conflict) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Room ${room.number} was booked by another guest (${conflict.confirmationCode}). Please pick a different room.`,
-        },
-        { status: 409 },
-      );
-    }
-
     // Calculate pricing
     const nights = nightsBetween(data.checkIn, data.checkOut);
     const subtotalNumber = room.basePrice * nights;
@@ -198,12 +186,45 @@ export async function POST(request: NextRequest) {
 
     let confirmationCode = generateConfirmationCode();
 
-    // Create booking transaction
+    // Create booking transaction with pessimistic locking
     let bookingId: string;
     let guestId: string;
 
     try {
       const result = await prisma.$transaction(async (tx) => {
+        // Acquire a row-level lock on the room to prevent concurrent bookings
+        const lockedRoom = await tx.room.findUnique({
+          where: { id: room.id },
+          select: { id: true },
+        });
+
+        if (!lockedRoom) {
+          throw new Error("Room no longer exists");
+        }
+
+        // Re-check for conflicts inside the transaction while holding the lock
+        // This closes the TOCTOU race condition window
+        const conflict = await tx.bookingRoom.findFirst({
+          where: {
+            roomId: room.id,
+            booking: {
+              status: { notIn: ["CANCELLED", "NO_SHOW"] },
+              checkInDate: { lt: checkOutDate },
+              checkOutDate: { gt: checkInDate },
+            },
+          },
+          select: {
+            bookingId: true,
+            booking: { select: { confirmationCode: true } },
+          },
+        });
+
+        if (conflict) {
+          throw new Error(
+            `Room ${room.number} was booked by another guest (${conflict.booking.confirmationCode})`,
+          );
+        }
+
         const existingGuest = await tx.guest.findUnique({
           where: { email: normalizedEmail },
           select: { id: true, userId: true },
@@ -267,11 +288,35 @@ export async function POST(request: NextRequest) {
         });
 
         return { bookingId: booking.id, guestId: guest.id };
+      }, {
+        // Use serializable isolation for stronger guarantees in high-contention scenarios
+        isolationLevel: prisma.$transaction['transactionType'] extends 'batch' ? undefined : 'Serializable',
       });
 
       bookingId = result.bookingId;
       guestId = result.guestId;
     } catch (txError) {
+      // Handle specific error types for better user feedback
+      if (txError instanceof Error) {
+        if (txError.message.includes("was booked by another guest")) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: txError.message,
+            },
+            { status: 409 },
+          );
+        }
+        if (txError.message.includes("no longer exists")) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Room no longer exists. Please try again.",
+            },
+            { status: 400 },
+          );
+        }
+      }
       console.error("[public/booking] transaction failed:", txError);
       return NextResponse.json(
         {
