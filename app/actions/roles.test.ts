@@ -68,28 +68,28 @@ describe("createRoleAction", () => {
   });
 
   it("returns field errors when input is invalid", async () => {
-    const r = await createRoleAction({ name: "" });
+    const r = await createRoleAction({ name: "", isSuperRole: false });
     expect(r.success).toBe(false);
     expect(r.fieldErrors?.name).toBeDefined();
   });
 
   it("returns 403-style error when caller is not admin", async () => {
     mockedAdmin.mockRejectedValueOnce(new AdminForbiddenError());
-    const r = await createRoleAction({ name: "front_desk" });
+    const r = await createRoleAction({ name: "front_desk", isSuperRole: false });
     expect(r.success).toBe(false);
     expect(r.error).toMatch(/admin/i);
   });
 
   it("returns error when caller lacks role.create permission", async () => {
     mockedReqPerm.mockRejectedValueOnce(new Error("forbidden"));
-    const r = await createRoleAction({ name: "front_desk" });
+    const r = await createRoleAction({ name: "front_desk", isSuperRole: false });
     expect(r.success).toBe(false);
     expect(r.error).toMatch(/create roles/i);
   });
 
   it("returns error when role name already exists", async () => {
     mockedPrisma.role.findUnique.mockResolvedValueOnce({ id: "existing", name: "front_desk" });
-    const r = await createRoleAction({ name: "front_desk" });
+    const r = await createRoleAction({ name: "front_desk", isSuperRole: false });
     expect(r.success).toBe(false);
     expect(r.fieldErrors?.name).toBeDefined();
   });
@@ -105,6 +105,7 @@ describe("createRoleAction", () => {
     mockedPrisma.role.findUnique.mockResolvedValueOnce(null);
     const r = await createRoleAction({
       name: "front_desk",
+      isSuperRole: false,
       permissionIds: ["p-1", "p-2"],
     });
     expect(r.success).toBe(true);

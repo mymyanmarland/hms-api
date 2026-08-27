@@ -18,8 +18,11 @@ export function makeRequest(url = "http://localhost:3000/test", options: Request
   }
   const init: RequestInit = { method, headers: new Headers(headers) };
   if (body !== undefined) {
-    (init.headers as Headers).set("content-type", "application/json");
+    init.headers = new Headers(headers);
+    init.headers.set("content-type", "application/json");
     init.body = typeof body === "string" ? body : JSON.stringify(body);
   }
-  return new NextRequest(finalUrl, init);
+  // Cast to bypass the stricter NextRequest.RequestInit which forbids `null` on `signal`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new NextRequest(finalUrl, init as any);
 }

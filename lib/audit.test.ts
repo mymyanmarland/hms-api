@@ -17,10 +17,10 @@ describe("writeAuditLog", () => {
 
   it("writes a row via Prisma when given an input payload", async () => {
     mockedPrisma.adminAuditLog.create.mockResolvedValueOnce({ id: "log-1" });
-    await writeAuditLog({ action: "ADMIN_CREATE", actorStaffId: "s-1" });
+    await writeAuditLog({ action: "INVITE", actorStaffId: "s-1" });
     expect(mockedPrisma.adminAuditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        action: "ADMIN_CREATE",
+        action: "INVITE",
         actorStaffId: "s-1",
       }),
     });
@@ -28,10 +28,10 @@ describe("writeAuditLog", () => {
 
   it("defaults optional fields to null / undefined", async () => {
     mockedPrisma.adminAuditLog.create.mockResolvedValueOnce({ id: "log-1" });
-    await writeAuditLog({ action: "ADMIN_UPDATE" });
+    await writeAuditLog({ action: "UPDATE" });
     expect(mockedPrisma.adminAuditLog.create).toHaveBeenCalledWith({
       data: {
-        action: "ADMIN_UPDATE",
+        action: "UPDATE",
         actorStaffId: null,
         targetStaffId: null,
         targetUserId: null,
@@ -43,7 +43,7 @@ describe("writeAuditLog", () => {
   it("forwards metadata when provided", async () => {
     mockedPrisma.adminAuditLog.create.mockResolvedValueOnce({ id: "log-1" });
     await writeAuditLog({
-      action: "ADMIN_UPDATE",
+      action: "UPDATE",
       metadata: { field: "email", from: "a", to: "b" },
     });
     expect(mockedPrisma.adminAuditLog.create).toHaveBeenCalledWith({
@@ -56,7 +56,7 @@ describe("writeAuditLog", () => {
   it("swallows errors so audit failures never block the calling action", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mockedPrisma.adminAuditLog.create.mockRejectedValueOnce(new Error("DB down"));
-    await expect(writeAuditLog({ action: "ADMIN_DELETE" })).resolves.toBeUndefined();
+    await expect(writeAuditLog({ action: "DELETE" })).resolves.toBeUndefined();
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });

@@ -38,7 +38,7 @@ vi.mock("@/lib/prisma", () => {
       },
       session: { findUnique: vi.fn() },
       emailLog: { create: vi.fn().mockResolvedValue({ id: "email-1" }) },
-      $transaction: vi.fn(async (cb: (tx: typeof tx) => unknown) => cb(tx)),
+      $transaction: vi.fn(async (cb) => cb(tx)),
     },
   };
 });
@@ -106,6 +106,7 @@ describe("searchAvailabilityAction", () => {
       checkIn: "not-a-date",
       checkOut: tomorrow,
       adults: 1,
+      children: 0,
     });
     expect(result.success).toBe(false);
     expect(result.fieldErrors?.checkIn).toBeDefined();
@@ -166,6 +167,7 @@ describe("searchAvailabilityAction", () => {
       checkIn: "2000-01-01",
       checkOut: tomorrow,
       adults: 1,
+      children: 0,
     });
     expect(result.success).toBe(false);
     expect(result.fieldErrors?.checkIn).toBeDefined();
