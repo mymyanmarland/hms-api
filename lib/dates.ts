@@ -32,3 +32,16 @@ export function nightsBetween(checkInIso: string, checkOutIso: string): number {
   const checkOut = normalizeToUtcStart(checkOutIso);
   return Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
 }
+
+/**
+ * Add `days` days to an ISO date string ("YYYY-MM-DD") and return a new
+ * ISO date string. The math is performed in UTC so that DST or server
+ * timezone changes cannot shift the resulting date by one day.
+ *
+ * @example addDays("2026-03-08", 1) // "2026-03-09"
+ */
+export function addDays(dateIso: string, days: number): string {
+  const date = normalizeToUtcStart(dateIso);
+  date.setUTCDate(date.getUTCDate() + days);
+  return toIsoDate(date);
+}

@@ -107,4 +107,18 @@ export const directBookingSchema = z
     message: "Check-out must be after check-in",
   });
 
-export type DirectBookingInput = z.infer<typeof directBookingSchema>;
+export type DirectBookingInput = z.input<typeof directBookingSchema>;
+
+/**
+ * Form-side input type for the Direct Booking dialog. Matches the
+ * *input* shape of `directBookingSchema` (so optional fields with
+ * `.default()` remain optional in the form values). The server action
+ * receives the parsed *output* type — `DirectBookingParsed`.
+ */
+export type DirectBookingFormInput = DirectBookingInput;
+
+/**
+ * Parsed/normalized booking payload, as accepted by the server action
+ * after Zod has applied defaults like `paymentMethod`.
+ */
+export type DirectBookingParsed = z.output<typeof directBookingSchema>;

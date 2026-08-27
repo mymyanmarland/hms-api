@@ -2,7 +2,7 @@
  * Booking utility helpers — confirmation codes and price formatting.
  */
 
-import { type Decimal } from "@prisma/client/runtime/library";
+import { Prisma } from "@/app/generated/prisma/client";
 
 /**
  * Generate a human-readable confirmation code in the format:
@@ -28,7 +28,7 @@ export function generateConfirmationCode(): string {
  * instead of "$150.00" for whole-dollar room rates).
  */
 export function formatBookingAmount(
-  amount: number | string | Decimal,
+  amount: number | string | Prisma.Decimal,
 ): string {
   const num = typeof amount === "string" ? parseFloat(amount) : Number(amount);
   const formatted = new Intl.NumberFormat("en-US", {

@@ -29,7 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   directBookingSchema,
-  type DirectBookingInput,
+  type DirectBookingFormInput,
 } from "@/lib/validations/public-booking";
 import {
   createDirectBookingAction,
@@ -60,7 +60,7 @@ export function BookingDialog() {
     null,
   );
 
-  const form = useForm<DirectBookingInput>({
+  const form = useForm<DirectBookingFormInput>({
     resolver: zodResolver(directBookingSchema),
     defaultValues: {
       roomTypeId: selectedRoomType?.roomTypeId ?? "",
@@ -74,6 +74,7 @@ export function BookingDialog() {
       guestEmail: guestPrefill?.email ?? "",
       guestPhone: guestPrefill?.phone ?? "",
       specialRequests: "",
+      paymentMethod: "CARD",
     },
   });
 
@@ -94,7 +95,7 @@ export function BookingDialog() {
       } else {
         if (result.fieldErrors) {
           for (const [field, messages] of Object.entries(result.fieldErrors)) {
-            form.setError(field as keyof DirectBookingInput, {
+            form.setError(field as keyof DirectBookingFormInput, {
               type: "server",
               message: messages?.[0] ?? "Invalid value",
             });
